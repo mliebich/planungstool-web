@@ -92,14 +92,23 @@ input:focus, button:focus {
   nav,
   button:not(.print-include),
   input,
+  select,
   .print-hide {
     display: none !important;
   }
 
   /* Reset background and colors for printing */
-  body {
+  body,
+  div,
+  main,
+  section,
+  article {
     background: white !important;
+    background-color: white !important;
     color: black !important;
+  }
+
+  body {
     font-size: 12pt;
     line-height: 1.4;
   }
@@ -109,6 +118,16 @@ input:focus, button:focus {
     max-width: 100% !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  /* Force white backgrounds on common elements */
+  .bg-white,
+  .rounded-xl,
+  .shadow-sm,
+  [class*="bg-"] {
+    background: white !important;
+    background-color: white !important;
+    box-shadow: none !important;
   }
 
   /* Print-specific container */
