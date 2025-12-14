@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
 export default function LoginPage() {
-	const { hasPassword, login, setupPassword, resetAllData } = useAuth();
+	const { hasPassword, login, setupPassword } = useAuth();
 	const router = useRouter();
 
 	const [password, setPassword] = useState('');
@@ -13,7 +13,6 @@ export default function LoginPage() {
 	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
-	const [showResetConfirm, setShowResetConfirm] = useState(false);
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -52,21 +51,6 @@ export default function LoginPage() {
 			}
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
-		} finally {
-			setIsLoading(false);
-		}
-	};
-
-	const handleReset = async () => {
-		setIsLoading(true);
-		try {
-			await resetAllData();
-			setShowResetConfirm(false);
-			setPassword('');
-			setConfirmPassword('');
-			setError('');
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Fehler beim Zurücksetzen');
 		} finally {
 			setIsLoading(false);
 		}
@@ -155,49 +139,6 @@ export default function LoginPage() {
 						)}
 					</button>
 				</form>
-
-				{/* Forgot Password */}
-				{hasPassword && !showResetConfirm && (
-					<button
-						onClick={() => setShowResetConfirm(true)}
-						className="w-full mt-4 py-2 text-sm"
-						style={{ color: 'var(--primary)' }}
-					>
-						Passwort vergessen?
-					</button>
-				)}
-
-				{/* Reset Confirmation */}
-				{showResetConfirm && (
-					<div
-						className="mt-6 p-4 rounded-xl border-2"
-						style={{
-							backgroundColor: '#fff3cd',
-							borderColor: '#ffc107',
-						}}
-					>
-						<p className="text-center font-semibold mb-4" style={{ color: '#856404' }}>
-							⚠️ WARNUNG: Dies löscht alle Ihre Daten unwiderruflich!
-						</p>
-						<div className="flex gap-3">
-							<button
-								onClick={() => setShowResetConfirm(false)}
-								className="flex-1 py-3 rounded-lg font-semibold text-white"
-								style={{ backgroundColor: '#6c757d' }}
-							>
-								Abbrechen
-							</button>
-							<button
-								onClick={handleReset}
-								disabled={isLoading}
-								className="flex-1 py-3 rounded-lg font-semibold text-white"
-								style={{ backgroundColor: 'var(--danger)' }}
-							>
-								Daten löschen
-							</button>
-						</div>
-					</div>
-				)}
 
 				{/* Info Text */}
 				{!hasPassword && (
