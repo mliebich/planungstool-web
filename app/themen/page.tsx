@@ -1,0 +1,689 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import { storage } from '@/lib/services/storage';
+import { Theme, Material } from '@/lib/types';
+import { getCurrentWeek, getCurrentYear } from '@/lib/utils/dateUtils';
+import { v4 as uuidv4 } from 'uuid';
+import Link from 'next/link';
+
+export default function ThemenPage() {
+	const { isAuthenticated, isLoading } = useAuth();
+	const router = useRouter();
+
+	const [themes, setThemes] = useState<Theme[]>([]);
+	const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
+	const [showThemeModal, setShowThemeModal] = useState(false);
+	const [showMaterialModal, setShowMaterialModal] = useState(false);
+	const [editingTheme, setEditingTheme] = useState<Theme | null>(null);
+	const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+
+	const [themeForm, setThemeForm] = useState({
+		name: '',
+		description: '',
+		classLevel: '',
+		targetClass: '',
+		startWeek: getCurrentWeek(),
+		endWeek: getCurrentWeek() + 4,
+		year: getCurrentYear(),
+		totalLessons: 10,
+	});
+
+	const [materialForm, setMaterialForm] = useState({
+		title: '',
+		type: 'document' as Material['type'],
+		description: '',
+		plannedLessons: 1,
+	});
+
+	useEffect(() => {
+		if (!isLoading && !isAuthenticated) {
+			router.push('/login');
+		}
+	}, [isAuthenticated, isLoading, router]);
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			loadThemes();
+		}
+	}, [isAuthenticated]);
+
+	const loadThemes = async () => {
+		try {
+			const savedThemes = await storage.getItem('themes');
+			if (savedThemes) {
+				setThemes(JSON.parse(savedThemes));
+			}
+		} catch (error) {
+			console.error('Fehler beim Laden:', error);
+		}
+	};
+
+	const saveThemes = async (updatedThemes: Theme[]) => {
+		try {
+			await storage.setItem('themes', JSON.stringify(updatedThemes));
+			setThemes(updatedThemes);
+		} catch (error) {
+			console.error('Fehler beim Speichern:', error);
+		}
+	};
+
+	const handleAddTheme = async () => {
+		if (!themeForm.name || !themeForm.classLevel) {
+			alert('Bitte Namen und Klassenstufe angeben');
+			return;
+		}
+
+		const newTheme: Theme = {
+			id: uuidv4(),
+			name: themeForm.name,
+			description: themeForm.description || undefined,
+			classLevel: themeForm.classLevel,
+			targetClass: themeForm.targetClass || undefined,
+			startWeek: themeForm.startWeek,
+			endWeek: themeForm.endWeek,
+			year: themeForm.year,
+			materials: [],
+			totalLessons: themeForm.totalLessons,
+			assignedLessons: [],
+		};
+
+		await saveThemes([...themes, newTheme]);
+		setShowThemeModal(false);
+		resetThemeForm();
+	};
+
+	const handleUpdateTheme = async () => {
+		if (!editingTheme) return;
+
+		const updatedThemes = themes.map(t =>
+			t.id === editingTheme.id
+				? {
+						...t,
+						name: themeForm.name,
+						description: themeForm.description || undefined,
+						classLevel: themeForm.classLevel,
+						targetClass: themeForm.targetClass || undefined,
+						startWeek: themeForm.startWeek,
+						endWeek: themeForm.endWeek,
+						year: themeForm.year,
+						totalLessons: themeForm.totalLessons,
+				  }
+				: t
+		);
+
+		await saveThemes(updatedThemes);
+		setEditingTheme(null);
+		resetThemeForm();
+	};
+
+	const handleDeleteTheme = async (id: string) => {
+		if (confirm('Thema wirklich löschen? Alle Materialien werden ebenfalls gelöscht.')) {
+			await saveThemes(themes.filter(t => t.id !== id));
+			if (selectedTheme?.id === id) {
+				setSelectedTheme(null);
+			}
+		}
+	};
+
+	const resetThemeForm = () => {
+		setThemeForm({
+			name: '',
+			description: '',
+			classLevel: '',
+			targetClass: '',
+			startWeek: getCurrentWeek(),
+			endWeek: getCurrentWeek() + 4,
+			year: getCurrentYear(),
+			totalLessons: 10,
+		});
+	};
+
+	const openEditTheme = (theme: Theme) => {
+		setEditingTheme(theme);
+		setThemeForm({
+			name: theme.name,
+			description: theme.description || '',
+			classLevel: theme.classLevel,
+			targetClass: theme.targetClass || '',
+			startWeek: theme.startWeek,
+			endWeek: theme.endWeek,
+			year: theme.year,
+			totalLessons: theme.totalLessons,
+		});
+	};
+
+	// Material handlers
+	const handleAddMaterial = async () => {
+		if (!selectedTheme || !materialForm.title) {
+			alert('Bitte einen Titel angeben');
+			return;
+		}
+
+		const newMaterial: Material = {
+			id: uuidv4(),
+			title: materialForm.title,
+			type: materialForm.type,
+			description: materialForm.description || undefined,
+			plannedLessons: materialForm.plannedLessons,
+		};
+
+		const updatedThemes = themes.map(t =>
+			t.id === selectedTheme.id
+				? {
+						...t,
+						materials: [...(t.materials || []), newMaterial],
+				  }
+				: t
+		);
+
+		await saveThemes(updatedThemes);
+		setSelectedTheme(updatedThemes.find(t => t.id === selectedTheme.id) || null);
+		setShowMaterialModal(false);
+		resetMaterialForm();
+	};
+
+	const handleUpdateMaterial = async () => {
+		if (!selectedTheme || !editingMaterial) return;
+
+		const updatedMaterials = (selectedTheme.materials || []).map(m =>
+			m.id === editingMaterial.id
+				? {
+						...m,
+						title: materialForm.title,
+						type: materialForm.type,
+						description: materialForm.description || undefined,
+						plannedLessons: materialForm.plannedLessons,
+				  }
+				: m
+		);
+
+		const updatedThemes = themes.map(t =>
+			t.id === selectedTheme.id
+				? { ...t, materials: updatedMaterials }
+				: t
+		);
+
+		await saveThemes(updatedThemes);
+		setSelectedTheme(updatedThemes.find(t => t.id === selectedTheme.id) || null);
+		setEditingMaterial(null);
+		resetMaterialForm();
+	};
+
+	const handleDeleteMaterial = async (materialId: string) => {
+		if (!selectedTheme) return;
+
+		if (confirm('Material wirklich löschen?')) {
+			const updatedMaterials = (selectedTheme.materials || []).filter(m => m.id !== materialId);
+			const updatedThemes = themes.map(t =>
+				t.id === selectedTheme.id
+					? { ...t, materials: updatedMaterials }
+					: t
+			);
+
+			await saveThemes(updatedThemes);
+			setSelectedTheme(updatedThemes.find(t => t.id === selectedTheme.id) || null);
+		}
+	};
+
+	const resetMaterialForm = () => {
+		setMaterialForm({
+			title: '',
+			type: 'document',
+			description: '',
+			plannedLessons: 1,
+		});
+	};
+
+	const openEditMaterial = (material: Material) => {
+		setEditingMaterial(material);
+		setMaterialForm({
+			title: material.title,
+			type: material.type,
+			description: material.description || '',
+			plannedLessons: material.plannedLessons ?? 1,
+		});
+	};
+
+	const MATERIAL_TYPES: { value: Material['type']; label: string }[] = [
+		{ value: 'document', label: 'Dokument' },
+		{ value: 'exercise', label: 'Übung' },
+		{ value: 'link', label: 'Link' },
+		{ value: 'pdf', label: 'PDF' },
+		{ value: 'video', label: 'Video' },
+	];
+
+	if (isLoading || !isAuthenticated) {
+		return (
+			<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--gray-50)' }}>
+				<div className="text-4xl animate-spin">...</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="min-h-screen" style={{ backgroundColor: 'var(--gray-50)' }}>
+			{/* Header */}
+			<header className="bg-white shadow-sm">
+				<div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+					<div className="flex items-center gap-4">
+						<Link
+							href="/"
+							className="px-4 py-2 rounded-lg text-white"
+							style={{ backgroundColor: 'var(--primary)' }}
+						>
+							Home
+						</Link>
+						<h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+							Oberthemen
+						</h1>
+					</div>
+					<button
+						onClick={() => {
+							resetThemeForm();
+							setShowThemeModal(true);
+						}}
+						className="px-4 py-2 rounded-lg text-white"
+						style={{ backgroundColor: 'var(--secondary)' }}
+					>
+						+ Neues Thema
+					</button>
+				</div>
+			</header>
+
+			<main className="max-w-7xl mx-auto px-4 py-6">
+				<div className="grid md:grid-cols-2 gap-6">
+					{/* Theme List */}
+					<div className="bg-white rounded-xl shadow-sm p-4">
+						<h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+							Themen ({themes.length})
+						</h2>
+
+						{themes.length === 0 ? (
+							<p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+								Noch keine Themen erstellt
+							</p>
+						) : (
+							<div className="space-y-2 max-h-[600px] overflow-y-auto">
+								{themes.map(theme => (
+									<div
+										key={theme.id}
+										onClick={() => setSelectedTheme(theme)}
+										className={`p-4 rounded-lg cursor-pointer transition-all border-2 ${
+											selectedTheme?.id === theme.id
+												? 'border-blue-500'
+												: 'border-transparent hover:bg-gray-50'
+										}`}
+									>
+										<div className="flex items-start gap-3">
+											<div className="flex-1">
+												<h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+													{theme.name}
+												</h3>
+												<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+													{theme.classLevel} {theme.targetClass && `(${theme.targetClass})`}
+												</p>
+												<p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+													KW {theme.startWeek}-{theme.endWeek} / {theme.year} • {theme.materials?.length || 0} Materialien
+												</p>
+											</div>
+											<div className="flex gap-1">
+												<button
+													onClick={e => { e.stopPropagation(); openEditTheme(theme); }}
+													className="px-2 py-1 rounded text-xs"
+													style={{ backgroundColor: 'var(--gray-200)' }}
+												>
+													Bearbeiten
+												</button>
+												<button
+													onClick={e => { e.stopPropagation(); handleDeleteTheme(theme.id); }}
+													className="px-2 py-1 rounded text-xs text-white"
+													style={{ backgroundColor: 'var(--danger)' }}
+												>
+													X
+												</button>
+											</div>
+										</div>
+									</div>
+								))}
+							</div>
+						)}
+					</div>
+
+					{/* Materials Panel */}
+					<div className="bg-white rounded-xl shadow-sm p-4">
+						{selectedTheme ? (
+							<>
+								<div className="flex justify-between items-start mb-4">
+									<div>
+										<h2 className="text-lg font-semibold" style={{ color: 'var(--text-primary)' }}>
+											{selectedTheme.name}
+										</h2>
+										{selectedTheme.description && (
+											<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+												{selectedTheme.description}
+											</p>
+										)}
+									</div>
+									<button
+										onClick={() => {
+											resetMaterialForm();
+											setShowMaterialModal(true);
+										}}
+										className="px-3 py-1 rounded text-sm text-white"
+										style={{ backgroundColor: 'var(--secondary)' }}
+									>
+										+ Material
+									</button>
+								</div>
+
+								{(selectedTheme.materials?.length || 0) === 0 ? (
+									<p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+										Noch keine Materialien
+									</p>
+								) : (
+									<div className="space-y-2 max-h-[500px] overflow-y-auto">
+										{selectedTheme.materials?.map(material => (
+											<div
+												key={material.id}
+												className="p-3 rounded-lg"
+												style={{ backgroundColor: 'var(--gray-50)' }}
+											>
+												<div className="flex justify-between items-start">
+													<div className="flex-1">
+														<div className="flex items-center gap-2">
+															<span className="font-medium">{material.title}</span>
+															<span
+																className="text-xs px-2 py-0.5 rounded"
+																style={{ backgroundColor: 'var(--gray-200)' }}
+															>
+																{MATERIAL_TYPES.find(t => t.value === material.type)?.label}
+															</span>
+														</div>
+														{material.description && (
+															<p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+																{material.description}
+															</p>
+														)}
+														{material.plannedLessons && (
+														<p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
+															{material.plannedLessons} Lektionen geplant
+														</p>
+													)}
+													</div>
+													<div className="flex gap-1">
+														<button
+															onClick={() => openEditMaterial(material)}
+															className="px-2 py-1 rounded text-xs"
+															style={{ backgroundColor: 'var(--gray-200)' }}
+														>
+															Bearbeiten
+														</button>
+														<button
+															onClick={() => handleDeleteMaterial(material.id)}
+															className="px-2 py-1 rounded text-xs text-white"
+															style={{ backgroundColor: 'var(--danger)' }}
+														>
+															X
+														</button>
+													</div>
+												</div>
+											</div>
+										))}
+									</div>
+								)}
+							</>
+						) : (
+							<div className="flex items-center justify-center h-64">
+								<p style={{ color: 'var(--text-secondary)' }}>
+									Wähle ein Thema aus der Liste
+								</p>
+							</div>
+						)}
+					</div>
+				</div>
+			</main>
+
+			{/* Theme Modal */}
+			{(showThemeModal || editingTheme) && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+					<div className="bg-white rounded-2xl p-6 w-full max-w-md">
+						<h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+							{editingTheme ? 'Thema bearbeiten' : 'Neues Thema'}
+						</h2>
+
+						<div className="space-y-4">
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Name *
+								</label>
+								<input
+									type="text"
+									value={themeForm.name}
+									onChange={e => setThemeForm({ ...themeForm, name: e.target.value })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+									placeholder="z.B. Algebra Grundlagen"
+								/>
+							</div>
+
+							<div className="grid grid-cols-2 gap-4">
+								<div>
+									<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+										Klassenstufe *
+									</label>
+									<input
+										type="text"
+										value={themeForm.classLevel}
+										onChange={e => setThemeForm({ ...themeForm, classLevel: e.target.value })}
+										className="w-full px-4 py-3 rounded-lg border-2"
+										style={{ borderColor: 'var(--border)' }}
+										placeholder="z.B. 5. Klasse"
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+										Zielklasse
+									</label>
+									<input
+										type="text"
+										value={themeForm.targetClass}
+										onChange={e => setThemeForm({ ...themeForm, targetClass: e.target.value })}
+										className="w-full px-4 py-3 rounded-lg border-2"
+										style={{ borderColor: 'var(--border)' }}
+										placeholder="z.B. 5a"
+									/>
+								</div>
+							</div>
+
+							<div className="grid grid-cols-3 gap-4">
+								<div>
+									<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+										Start-KW
+									</label>
+									<input
+										type="number"
+										min="1"
+										max="52"
+										value={themeForm.startWeek}
+										onChange={e => setThemeForm({ ...themeForm, startWeek: parseInt(e.target.value) || 1 })}
+										className="w-full px-4 py-3 rounded-lg border-2"
+										style={{ borderColor: 'var(--border)' }}
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+										End-KW
+									</label>
+									<input
+										type="number"
+										min="1"
+										max="52"
+										value={themeForm.endWeek}
+										onChange={e => setThemeForm({ ...themeForm, endWeek: parseInt(e.target.value) || 1 })}
+										className="w-full px-4 py-3 rounded-lg border-2"
+										style={{ borderColor: 'var(--border)' }}
+									/>
+								</div>
+								<div>
+									<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+										Jahr
+									</label>
+									<input
+										type="number"
+										min="2024"
+										max="2030"
+										value={themeForm.year}
+										onChange={e => setThemeForm({ ...themeForm, year: parseInt(e.target.value) || getCurrentYear() })}
+										className="w-full px-4 py-3 rounded-lg border-2"
+										style={{ borderColor: 'var(--border)' }}
+									/>
+								</div>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Geplante Lektionen
+								</label>
+								<input
+									type="number"
+									min="1"
+									value={themeForm.totalLessons}
+									onChange={e => setThemeForm({ ...themeForm, totalLessons: parseInt(e.target.value) || 1 })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+								/>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Beschreibung
+								</label>
+								<textarea
+									value={themeForm.description}
+									onChange={e => setThemeForm({ ...themeForm, description: e.target.value })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+									rows={3}
+								/>
+							</div>
+						</div>
+
+						<div className="flex gap-3 mt-6">
+							<button
+								onClick={() => {
+									setShowThemeModal(false);
+									setEditingTheme(null);
+									resetThemeForm();
+								}}
+								className="flex-1 py-3 rounded-lg font-semibold"
+								style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+							>
+								Abbrechen
+							</button>
+							<button
+								onClick={editingTheme ? handleUpdateTheme : handleAddTheme}
+								className="flex-1 py-3 rounded-lg font-semibold text-white"
+								style={{ backgroundColor: 'var(--primary)' }}
+							>
+								{editingTheme ? 'Speichern' : 'Erstellen'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Material Modal */}
+			{(showMaterialModal || editingMaterial) && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+					<div className="bg-white rounded-2xl p-6 w-full max-w-md">
+						<h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+							{editingMaterial ? 'Material bearbeiten' : 'Neues Material'}
+						</h2>
+
+						<div className="space-y-4">
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Titel *
+								</label>
+								<input
+									type="text"
+									value={materialForm.title}
+									onChange={e => setMaterialForm({ ...materialForm, title: e.target.value })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+								/>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Typ
+								</label>
+								<select
+									value={materialForm.type}
+									onChange={e => setMaterialForm({ ...materialForm, type: e.target.value as Material['type'] })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+								>
+									{MATERIAL_TYPES.map(type => (
+										<option key={type.value} value={type.value}>{type.label}</option>
+									))}
+								</select>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Geplante Lektionen
+								</label>
+								<input
+									type="number"
+									min="1"
+									value={materialForm.plannedLessons}
+									onChange={e => setMaterialForm({ ...materialForm, plannedLessons: parseInt(e.target.value) || 1 })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+								/>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Beschreibung
+								</label>
+								<textarea
+									value={materialForm.description}
+									onChange={e => setMaterialForm({ ...materialForm, description: e.target.value })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+									rows={3}
+								/>
+							</div>
+						</div>
+
+						<div className="flex gap-3 mt-6">
+							<button
+								onClick={() => {
+									setShowMaterialModal(false);
+									setEditingMaterial(null);
+									resetMaterialForm();
+								}}
+								className="flex-1 py-3 rounded-lg font-semibold"
+								style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+							>
+								Abbrechen
+							</button>
+							<button
+								onClick={editingMaterial ? handleUpdateMaterial : handleAddMaterial}
+								className="flex-1 py-3 rounded-lg font-semibold text-white"
+								style={{ backgroundColor: 'var(--primary)' }}
+							>
+								{editingMaterial ? 'Speichern' : 'Erstellen'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}

@@ -1,65 +1,119 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/lib/contexts/AuthContext';
+import settingsService from '@/lib/services/settingsService';
+import { TileConfig } from '@/lib/types/settings';
+import Link from 'next/link';
+
+export default function HomePage() {
+	const { isAuthenticated, isLoading, logout } = useAuth();
+	const router = useRouter();
+	const [tiles, setTiles] = useState<TileConfig[]>([]);
+	const [loadingTiles, setLoadingTiles] = useState(true);
+
+	useEffect(() => {
+		if (!isLoading && !isAuthenticated) {
+			router.push('/login');
+		}
+	}, [isAuthenticated, isLoading, router]);
+
+	useEffect(() => {
+		if (isAuthenticated) {
+			loadTiles();
+		}
+	}, [isAuthenticated]);
+
+	const loadTiles = async () => {
+		try {
+			const settings = await settingsService.getSettings();
+			const enabledTiles = settings.tiles
+				.filter(t => t.enabled)
+				.sort((a, b) => a.order - b.order);
+			setTiles(enabledTiles);
+		} catch (error) {
+			console.error('Fehler beim Laden der Tiles:', error);
+			const defaultSettings = settingsService.getDefaultSettings();
+			setTiles(defaultSettings.tiles.filter(t => t.enabled));
+		} finally {
+			setLoadingTiles(false);
+		}
+	};
+
+	if (isLoading) {
+		return (
+			<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--gray-50)' }}>
+				<div className="text-center">
+					<div className="text-4xl animate-spin mb-4">⏳</div>
+					<p style={{ color: 'var(--text-secondary)' }}>Lade...</p>
+				</div>
+			</div>
+		);
+	}
+
+	if (!isAuthenticated) {
+		return null;
+	}
+
+	return (
+		<div className="min-h-screen" style={{ backgroundColor: 'var(--gray-50)' }}>
+			{/* Header */}
+			<header className="bg-white shadow-sm">
+				<div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+					<h1 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+						📚 Planungstool
+					</h1>
+					<div className="flex items-center gap-4">
+						<Link
+							href="/einstellungen"
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-100)', color: 'var(--text-primary)' }}
+						>
+							⚙️ Einstellungen
+						</Link>
+						<button
+							onClick={logout}
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-100)', color: 'var(--text-primary)' }}
+						>
+							🔒 Abmelden
+						</button>
+					</div>
+				</div>
+			</header>
+
+			{/* Main Content */}
+			<main className="max-w-6xl mx-auto px-4 py-8">
+				{loadingTiles ? (
+					<div className="text-center py-12">
+						<div className="text-4xl animate-spin mb-4">⏳</div>
+						<p style={{ color: 'var(--text-secondary)' }}>Lade Kacheln...</p>
+					</div>
+				) : (
+					<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+						{tiles.map((tile) => (
+							<Link
+								key={tile.id}
+								href={tile.route}
+								className="block p-6 rounded-2xl text-white transition-transform hover:scale-105 hover:shadow-lg"
+								style={{ backgroundColor: tile.color }}
+							>
+								<div className="text-4xl mb-3">{tile.icon}</div>
+								<h2 className="text-xl font-bold mb-1">{tile.title}</h2>
+								<p className="text-sm opacity-90">{tile.description}</p>
+							</Link>
+						))}
+					</div>
+				)}
+
+				{/* Info */}
+				<div className="mt-12 text-center" style={{ color: 'var(--text-tertiary)' }}>
+					<p className="text-sm">
+						Teacher Planning Tool - Web Version
+					</p>
+				</div>
+			</main>
+		</div>
+	);
 }
