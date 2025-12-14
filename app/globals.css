@@ -83,3 +83,122 @@ input:focus, button:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--gray-500);
 }
+
+/* ==================== PRINT STYLES ==================== */
+@media print {
+  /* Hide non-printable elements */
+  .no-print,
+  header,
+  nav,
+  button:not(.print-include),
+  input,
+  .print-hide {
+    display: none !important;
+  }
+
+  /* Reset background and colors for printing */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+
+  /* Make sure content uses full width */
+  main {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Print-specific container */
+  .print-container {
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* Print header */
+  .print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #333;
+  }
+
+  .print-header h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+  }
+
+  .print-header p {
+    font-size: 10pt;
+    color: #666;
+    margin: 5px 0 0 0;
+  }
+
+  /* Tables for print */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  th, td {
+    border: 1px solid #333 !important;
+    padding: 6px 8px !important;
+    text-align: left;
+    font-size: 10pt;
+  }
+
+  th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cards for print */
+  .print-card {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin-bottom: 10px;
+    page-break-inside: avoid;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always;
+  }
+
+  /* Ensure colors print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* Links */
+  a {
+    text-decoration: none;
+    color: black !important;
+  }
+
+  /* Footer with date */
+  .print-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 8pt;
+    color: #999;
+    padding: 10px;
+  }
+}

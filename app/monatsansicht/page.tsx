@@ -207,9 +207,22 @@ export default function MonatsansichtPage() {
 						>
 							&#8594;
 						</button>
+						<button
+							onClick={() => window.print()}
+							className="px-4 py-2 rounded-lg ml-2"
+							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+						>
+							🖨️
+						</button>
 					</div>
 				</div>
 			</header>
+
+			{/* Print Header (hidden on screen) */}
+			<div className="print-header hidden">
+				<h1>Monatsansicht - {MONTH_NAMES[currentMonth]} {currentYear}</h1>
+				<p>Gedruckt am {new Date().toLocaleDateString('de-DE')}</p>
+			</div>
 
 			<main className="max-w-6xl mx-auto px-4 py-6">
 				{/* Calendar Grid */}

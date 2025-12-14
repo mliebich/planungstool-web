@@ -165,15 +165,30 @@ export default function KlassenPage() {
 							👥 Klassenverwaltung
 						</h1>
 					</div>
-					<button
-						onClick={() => setShowAddClassModal(true)}
-						className="px-4 py-2 rounded-lg text-white"
-						style={{ backgroundColor: 'var(--secondary)' }}
-					>
-						+ Neue Klasse
-					</button>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={() => window.print()}
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+						>
+							🖨️ Drucken
+						</button>
+						<button
+							onClick={() => setShowAddClassModal(true)}
+							className="px-4 py-2 rounded-lg text-white"
+							style={{ backgroundColor: 'var(--secondary)' }}
+						>
+							+ Neue Klasse
+						</button>
+					</div>
 				</div>
 			</header>
+
+			{/* Print Header (hidden on screen) */}
+			<div className="print-header hidden">
+				<h1>Klassenverwaltung{selectedClass ? ` - ${selectedClass.name}` : ''}</h1>
+				<p>Gedruckt am {new Date().toLocaleDateString('de-DE')}</p>
+			</div>
 
 			<main className="max-w-7xl mx-auto px-4 py-6">
 				<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

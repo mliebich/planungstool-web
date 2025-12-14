@@ -261,18 +261,33 @@ export default function CoachingPage() {
 							Coaching
 						</h1>
 					</div>
-					<button
-						onClick={() => {
-							resetForm();
-							setShowAddModal(true);
-						}}
-						className="px-4 py-2 rounded-lg text-white"
-						style={{ backgroundColor: 'var(--secondary)' }}
-					>
-						+ Neuer Eintrag
-					</button>
+					<div className="flex items-center gap-2">
+						<button
+							onClick={() => window.print()}
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+						>
+							🖨️ Drucken
+						</button>
+						<button
+							onClick={() => {
+								resetForm();
+								setShowAddModal(true);
+							}}
+							className="px-4 py-2 rounded-lg text-white"
+							style={{ backgroundColor: 'var(--secondary)' }}
+						>
+							+ Neuer Eintrag
+						</button>
+					</div>
 				</div>
 			</header>
+
+			{/* Print Header (hidden on screen) */}
+			<div className="print-header hidden">
+				<h1>Coaching-Gespräche</h1>
+				<p>Gedruckt am {new Date().toLocaleDateString('de-DE')}</p>
+			</div>
 
 			<main className="max-w-4xl mx-auto px-4 py-6">
 				{classes.length === 0 ? (
