@@ -4,17 +4,33 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 
+type LoginMode = 'local' | 'cloud';
+type CloudAction = 'login' | 'register';
+
 export default function LoginPage() {
-	const { hasPassword, login, setupPassword } = useAuth();
+	const {
+		hasPassword,
+		login,
+		setupPassword,
+		isCloudConfigured,
+		signUpWithCloud,
+		signInWithCloud,
+	} = useAuth();
 	const router = useRouter();
 
+	// Mode selection
+	const [mode, setMode] = useState<LoginMode>(isCloudConfigured ? 'cloud' : 'local');
+	const [cloudAction, setCloudAction] = useState<CloudAction>('login');
+
+	// Form state
+	const [email, setEmail] = useState('');
 	const [password, setPassword] = useState('');
 	const [confirmPassword, setConfirmPassword] = useState('');
 	const [showPassword, setShowPassword] = useState(false);
 	const [error, setError] = useState('');
 	const [isLoading, setIsLoading] = useState(false);
 
-	const handleSubmit = async (e: React.FormEvent) => {
+	const handleLocalSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError('');
 
@@ -56,6 +72,58 @@ export default function LoginPage() {
 		}
 	};
 
+	const handleCloudSubmit = async (e: React.FormEvent) => {
+		e.preventDefault();
+		setError('');
+
+		if (!email.trim()) {
+			setError('Bitte E-Mail eingeben');
+			return;
+		}
+
+		if (!password.trim()) {
+			setError('Bitte Passwort eingeben');
+			return;
+		}
+
+		if (cloudAction === 'register') {
+			if (password !== confirmPassword) {
+				setError('Passwörter stimmen nicht überein');
+				return;
+			}
+			if (password.length < 6) {
+				setError('Passwort muss mindestens 6 Zeichen lang sein');
+				return;
+			}
+		}
+
+		setIsLoading(true);
+
+		try {
+			if (cloudAction === 'register') {
+				const result = await signUpWithCloud(email, password);
+				if (result.success) {
+					router.push('/');
+				} else {
+					setError(result.error || 'Registrierung fehlgeschlagen');
+				}
+			} else {
+				const result = await signInWithCloud(email, password);
+				if (result.success) {
+					router.push('/');
+				} else {
+					setError(result.error || 'Anmeldung fehlgeschlagen');
+				}
+			}
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Ein Fehler ist aufgetreten');
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
+	const needsConfirmPassword = (mode === 'local' && !hasPassword) || (mode === 'cloud' && cloudAction === 'register');
+
 	return (
 		<div className="min-h-screen flex items-center justify-center px-4" style={{ backgroundColor: 'var(--gray-50)' }}>
 			<div className="w-full max-w-md">
@@ -63,16 +131,60 @@ export default function LoginPage() {
 				<div className="text-center mb-8">
 					<div className="text-6xl mb-4">📚</div>
 					<h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>
-						{hasPassword ? 'Planungstool' : 'Willkommen!'}
+						Planungstool
 					</h1>
 					<p className="mt-2" style={{ color: 'var(--text-secondary)' }}>
-						{hasPassword
-							? 'Bitte Passwort eingeben'
-							: 'Erstellen Sie ein Passwort zum Schutz Ihrer Daten'}
+						{mode === 'cloud'
+							? (cloudAction === 'register' ? 'Konto erstellen' : 'Mit Cloud anmelden')
+							: (hasPassword ? 'Bitte Passwort eingeben' : 'Passwort erstellen')}
 					</p>
 				</div>
 
-				<form onSubmit={handleSubmit} className="space-y-4">
+				{/* Mode Tabs (only show if cloud is configured) */}
+				{isCloudConfigured && (
+					<div className="flex mb-6 rounded-xl overflow-hidden" style={{ backgroundColor: 'var(--gray-100)' }}>
+						<button
+							type="button"
+							onClick={() => setMode('cloud')}
+							className={`flex-1 py-3 text-sm font-medium transition-colors ${
+								mode === 'cloud' ? 'bg-white shadow-sm' : ''
+							}`}
+							style={{ color: mode === 'cloud' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+						>
+							☁️ Cloud
+						</button>
+						<button
+							type="button"
+							onClick={() => setMode('local')}
+							className={`flex-1 py-3 text-sm font-medium transition-colors ${
+								mode === 'local' ? 'bg-white shadow-sm' : ''
+							}`}
+							style={{ color: mode === 'local' ? 'var(--text-primary)' : 'var(--text-secondary)' }}
+						>
+							💾 Lokal
+						</button>
+					</div>
+				)}
+
+				<form onSubmit={mode === 'cloud' ? handleCloudSubmit : handleLocalSubmit} className="space-y-4">
+					{/* Email Input (Cloud only) */}
+					{mode === 'cloud' && (
+						<input
+							type="email"
+							placeholder="E-Mail"
+							value={email}
+							onChange={(e) => setEmail(e.target.value)}
+							className="w-full px-4 py-4 text-lg rounded-xl border-2"
+							style={{
+								backgroundColor: 'white',
+								borderColor: 'var(--border)',
+								color: 'var(--text-primary)',
+							}}
+							disabled={isLoading}
+							autoComplete="email"
+						/>
+					)}
+
 					{/* Password Input */}
 					<div className="relative">
 						<input
@@ -87,6 +199,7 @@ export default function LoginPage() {
 								color: 'var(--text-primary)',
 							}}
 							disabled={isLoading}
+							autoComplete={mode === 'cloud' ? 'current-password' : undefined}
 						/>
 						<button
 							type="button"
@@ -98,8 +211,8 @@ export default function LoginPage() {
 						</button>
 					</div>
 
-					{/* Confirm Password (Setup only) */}
-					{!hasPassword && (
+					{/* Confirm Password */}
+					{needsConfirmPassword && (
 						<input
 							type={showPassword ? 'text' : 'password'}
 							placeholder="Passwort bestätigen"
@@ -112,6 +225,7 @@ export default function LoginPage() {
 								color: 'var(--text-primary)',
 							}}
 							disabled={isLoading}
+							autoComplete="new-password"
 						/>
 					)}
 
@@ -128,24 +242,44 @@ export default function LoginPage() {
 						disabled={isLoading}
 						className="w-full py-4 text-lg font-bold rounded-xl transition-opacity disabled:opacity-60"
 						style={{
-							backgroundColor: 'var(--gray-100)',
-							color: 'var(--text-primary)',
+							backgroundColor: mode === 'cloud' ? 'var(--primary)' : 'var(--gray-100)',
+							color: mode === 'cloud' ? 'white' : 'var(--text-primary)',
 						}}
 					>
 						{isLoading ? (
 							<span className="inline-block animate-spin">⏳</span>
+						) : mode === 'cloud' ? (
+							cloudAction === 'register' ? '✨ Konto erstellen' : '☁️ Anmelden'
 						) : (
 							hasPassword ? '🔓 Entsperren' : '✅ Passwort erstellen'
 						)}
 					</button>
+
+					{/* Cloud action toggle */}
+					{mode === 'cloud' && (
+						<button
+							type="button"
+							onClick={() => setCloudAction(cloudAction === 'login' ? 'register' : 'login')}
+							className="w-full py-2 text-sm"
+							style={{ color: 'var(--text-secondary)' }}
+						>
+							{cloudAction === 'login'
+								? 'Noch kein Konto? Jetzt registrieren'
+								: 'Bereits ein Konto? Anmelden'}
+						</button>
+					)}
 				</form>
 
 				{/* Info Text */}
-				{!hasPassword && (
-					<p className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-						💡 Merken Sie sich dieses Passwort gut. Es gibt keine Wiederherstellungsmöglichkeit!
-					</p>
-				)}
+				<div className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
+					{mode === 'cloud' ? (
+						<p>☁️ Daten werden verschlüsselt in der Cloud gespeichert und auf allen Geräten synchronisiert.</p>
+					) : (
+						!hasPassword && (
+							<p>💡 Merken Sie sich dieses Passwort gut. Es gibt keine Wiederherstellungsmöglichkeit!</p>
+						)
+					)}
+				</div>
 			</div>
 		</div>
 	);

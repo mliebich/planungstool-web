@@ -1,9 +1,11 @@
 import { openDB, IDBPDatabase } from 'idb';
 import EncryptionService from './encryption';
+import { LocalTimestamps, SYNCABLE_KEYS, SyncableKey } from '../types/sync';
 
 const DB_NAME = 'planungstool';
 const DB_VERSION = 1;
 const STORE_NAME = 'data';
+const TIMESTAMPS_KEY = 'localTimestamps';
 
 // Keys die verschlüsselt werden
 const ENCRYPTED_KEYS = [
@@ -102,6 +104,11 @@ class BrowserStorage {
 				await this.db.put(STORE_NAME, encrypted, key);
 			} else {
 				await this.db.put(STORE_NAME, value, key);
+			}
+
+			// Update timestamp for syncable keys
+			if (SYNCABLE_KEYS.includes(key as SyncableKey)) {
+				await this.updateTimestamp(key);
 			}
 		} catch (error) {
 			console.error(`Fehler beim Speichern von ${key}:`, error);
@@ -267,6 +274,102 @@ class BrowserStorage {
 		if (!this.db) throw new Error('Database not initialized');
 
 		await this.db.clear(STORE_NAME);
+	}
+
+	// ==================== SYNC METHODS ====================
+
+	/**
+	 * Updates the timestamp for a key
+	 */
+	private async updateTimestamp(key: string): Promise<void> {
+		await this.init();
+		if (!this.db) throw new Error('Database not initialized');
+
+		const timestamps = await this.getTimestamps();
+		timestamps[key] = new Date().toISOString();
+		await this.db.put(STORE_NAME, JSON.stringify(timestamps), TIMESTAMPS_KEY);
+	}
+
+	/**
+	 * Gets all local timestamps
+	 */
+	async getTimestamps(): Promise<LocalTimestamps> {
+		await this.init();
+		if (!this.db) throw new Error('Database not initialized');
+
+		const data = await this.db.get(STORE_NAME, TIMESTAMPS_KEY);
+		if (!data) return {};
+
+		try {
+			return JSON.parse(data);
+		} catch {
+			return {};
+		}
+	}
+
+	/**
+	 * Gets the timestamp for a specific key
+	 */
+	async getTimestamp(key: string): Promise<Date | null> {
+		const timestamps = await this.getTimestamps();
+		const ts = timestamps[key];
+		return ts ? new Date(ts) : null;
+	}
+
+	/**
+	 * Gets raw encrypted data for sync (without decrypting)
+	 */
+	async getRawItem(key: string): Promise<string | null> {
+		await this.init();
+		if (!this.db) throw new Error('Database not initialized');
+
+		const value = await this.db.get(STORE_NAME, key);
+		return value ?? null;
+	}
+
+	/**
+	 * Sets raw data from cloud sync (already encrypted or unencrypted settings)
+	 * Does NOT update timestamp (to avoid sync loops)
+	 */
+	async setRawItem(key: string, value: string): Promise<void> {
+		await this.init();
+		if (!this.db) throw new Error('Database not initialized');
+
+		await this.db.put(STORE_NAME, value, key);
+	}
+
+	/**
+	 * Sets raw data and updates timestamp (for initial cloud download)
+	 */
+	async setRawItemWithTimestamp(key: string, value: string, timestamp: string): Promise<void> {
+		await this.init();
+		if (!this.db) throw new Error('Database not initialized');
+
+		await this.db.put(STORE_NAME, value, key);
+
+		// Update timestamp to match cloud
+		const timestamps = await this.getTimestamps();
+		timestamps[key] = timestamp;
+		await this.db.put(STORE_NAME, JSON.stringify(timestamps), TIMESTAMPS_KEY);
+	}
+
+	/**
+	 * Gets all syncable data with their timestamps (for full sync)
+	 */
+	async getAllSyncableData(): Promise<{ key: string; data: string | null; timestamp: string | null }[]> {
+		const timestamps = await this.getTimestamps();
+		const result: { key: string; data: string | null; timestamp: string | null }[] = [];
+
+		for (const key of SYNCABLE_KEYS) {
+			const data = await this.getRawItem(key);
+			result.push({
+				key,
+				data,
+				timestamp: timestamps[key] || null,
+			});
+		}
+
+		return result;
 	}
 }
 

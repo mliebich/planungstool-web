@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
+import { useSync } from '@/lib/contexts/SyncContext';
 import settingsService from '@/lib/services/settingsService';
 import classService from '@/lib/services/classService';
 import examService from '@/lib/services/examService';
@@ -14,8 +15,24 @@ import Link from 'next/link';
 const WEEKDAY_NAMES = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
 
 export default function EinstellungenPage() {
-	const { isAuthenticated, isLoading, resetAllData } = useAuth();
+	const {
+		isAuthenticated,
+		isLoading,
+		resetAllData,
+		user,
+		isCloudEnabled,
+		isCloudConfigured,
+		linkToCloud,
+		unlinkFromCloud,
+		signOutCloud,
+	} = useAuth();
+	const { syncState, sync } = useSync();
 	const router = useRouter();
+
+	// Cloud link state
+	const [linkEmail, setLinkEmail] = useState('');
+	const [isLinking, setIsLinking] = useState(false);
+	const [linkError, setLinkError] = useState('');
 
 	const [tiles, setTiles] = useState<TileConfig[]>([]);
 	const [weekdays, setWeekdays] = useState<DayOfWeek[]>([]);
@@ -237,6 +254,48 @@ export default function EinstellungenPage() {
 		}
 	};
 
+	// ========== Cloud Sync Functions ==========
+
+	const handleLinkToCloud = async () => {
+		if (!linkEmail.trim()) {
+			setLinkError('Bitte E-Mail eingeben');
+			return;
+		}
+
+		setIsLinking(true);
+		setLinkError('');
+
+		const result = await linkToCloud(linkEmail);
+		if (result.success) {
+			setLinkEmail('');
+		} else {
+			setLinkError(result.error || 'Fehler beim Verknüpfen');
+		}
+
+		setIsLinking(false);
+	};
+
+	const handleUnlinkFromCloud = async () => {
+		if (confirm('Cloud-Verbindung trennen? Deine Daten bleiben lokal erhalten, aber werden nicht mehr synchronisiert.')) {
+			await unlinkFromCloud();
+		}
+	};
+
+	const handleManualSync = async () => {
+		await sync();
+	};
+
+	const formatLastSync = (date: Date | null) => {
+		if (!date) return 'Nie';
+		return date.toLocaleString('de-DE', {
+			day: '2-digit',
+			month: '2-digit',
+			year: 'numeric',
+			hour: '2-digit',
+			minute: '2-digit',
+		});
+	};
+
 	if (isLoading || !isAuthenticated) {
 		return (
 			<div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: 'var(--gray-50)' }}>
@@ -293,6 +352,100 @@ export default function EinstellungenPage() {
 						))}
 					</div>
 				</section>
+
+				{/* Cloud Sync Settings */}
+				{isCloudConfigured && (
+					<section className="bg-white rounded-xl shadow-sm p-6">
+						<h2 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>
+							☁️ Cloud Sync
+						</h2>
+
+						{isCloudEnabled ? (
+							<div className="space-y-4">
+								{/* Connection Status */}
+								<div className="flex items-center justify-between p-4 rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }}>
+									<div>
+										<div className="flex items-center gap-2">
+											<span className="w-3 h-3 rounded-full" style={{ backgroundColor: syncState.isOnline ? 'var(--secondary)' : 'var(--danger)' }}></span>
+											<span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+												{syncState.isOnline ? 'Verbunden' : 'Offline'}
+											</span>
+										</div>
+										<div className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+											{user?.email}
+										</div>
+									</div>
+									<button
+										onClick={handleUnlinkFromCloud}
+										className="px-4 py-2 rounded-lg text-sm"
+										style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+									>
+										Trennen
+									</button>
+								</div>
+
+								{/* Sync Status */}
+								<div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }}>
+									<div className="flex items-center justify-between">
+										<div>
+											<div className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+												Letzte Synchronisation
+											</div>
+											<div className="font-medium" style={{ color: 'var(--text-primary)' }}>
+												{formatLastSync(syncState.lastSyncAt)}
+											</div>
+										</div>
+										<button
+											onClick={handleManualSync}
+											disabled={syncState.isSyncing || !syncState.isOnline}
+											className="px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50"
+											style={{ backgroundColor: 'var(--primary)' }}
+										>
+											{syncState.isSyncing ? '⏳ Sync...' : '🔄 Jetzt sync'}
+										</button>
+									</div>
+									{syncState.error && (
+										<div className="mt-2 text-sm" style={{ color: 'var(--danger)' }}>
+											{syncState.error}
+										</div>
+									)}
+								</div>
+							</div>
+						) : (
+							<div className="space-y-4">
+								<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+									Verbinde dein Konto mit der Cloud, um deine Daten auf allen Geräten zu synchronisieren.
+								</p>
+								<div className="flex gap-2">
+									<input
+										type="email"
+										value={linkEmail}
+										onChange={e => setLinkEmail(e.target.value)}
+										placeholder="E-Mail-Adresse"
+										className="flex-1 px-4 py-2 rounded-lg border"
+										style={{ borderColor: 'var(--border)' }}
+									/>
+									<button
+										onClick={handleLinkToCloud}
+										disabled={isLinking}
+										className="px-6 py-2 rounded-lg text-white font-medium disabled:opacity-50"
+										style={{ backgroundColor: 'var(--primary)' }}
+									>
+										{isLinking ? '...' : 'Verbinden'}
+									</button>
+								</div>
+								{linkError && (
+									<p className="text-sm" style={{ color: 'var(--danger)' }}>
+										{linkError}
+									</p>
+								)}
+								<p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+									Es wird ein Cloud-Konto mit deinem lokalen Passwort erstellt.
+								</p>
+							</div>
+						)}
+					</section>
+				)}
 
 				{/* Tile Settings */}
 				<section className="bg-white rounded-xl shadow-sm p-6">
@@ -598,10 +751,12 @@ export default function EinstellungenPage() {
 				{/* App Info */}
 				<section className="text-center py-8">
 					<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
-						Planungstool Web v1.0
+						Planungstool Web v1.1
 					</p>
 					<p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
-						Daten werden lokal im Browser gespeichert
+						{isCloudEnabled
+							? '☁️ Cloud Sync aktiviert'
+							: '💾 Daten werden lokal im Browser gespeichert'}
 					</p>
 				</section>
 			</main>
