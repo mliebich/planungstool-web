@@ -544,20 +544,167 @@ export default function CoachingPage() {
 			{printSession && (() => {
 				const studentInfo = getStudentById(printSession.studentId);
 				return (
-					<div
-						className="print-single-session"
-						style={{
-							position: 'fixed',
-							top: 0,
-							left: 0,
-							right: 0,
-							bottom: 0,
-							background: 'white',
-							zIndex: 9999,
-							padding: '40px',
-							overflow: 'auto',
-						}}
-					>
+					<>
+						{/* Screen version - overlay */}
+						<div
+							className="print-single-session-screen no-print"
+							style={{
+								position: 'fixed',
+								top: 0,
+								left: 0,
+								right: 0,
+								bottom: 0,
+								background: 'white',
+								zIndex: 9999,
+								padding: '40px',
+								overflow: 'auto',
+							}}
+						>
+							<div className="max-w-2xl mx-auto">
+								{/* Header */}
+								<div className="text-center mb-8 pb-4 border-b-2 border-gray-800">
+									<h1 className="text-2xl font-bold">Coaching-Gespräch</h1>
+									<p className="text-gray-600 mt-1">
+										Dokumentation vom {formatDate(new Date(printSession.date))}
+									</p>
+								</div>
+
+								{/* Student Info */}
+								<div className="mb-6 p-4 bg-gray-50 rounded-lg">
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<span className="text-sm text-gray-500">Schüler:in</span>
+											<p className="font-semibold text-lg">
+												{studentInfo
+													? `${studentInfo.student.firstName} ${studentInfo.student.lastName}`
+													: "Unbekannt"}
+											</p>
+										</div>
+										<div>
+											<span className="text-sm text-gray-500">Klasse</span>
+											<p className="font-semibold text-lg">
+												{studentInfo?.className || "-"}
+											</p>
+										</div>
+										<div>
+											<span className="text-sm text-gray-500">Status</span>
+											<p className="font-semibold">
+												{STATUS_OPTIONS.find((s) => s.value === printSession.status)?.label}
+											</p>
+										</div>
+										<div>
+											<span className="text-sm text-gray-500">Eltern anwesend</span>
+											<p className="font-semibold">
+												{printSession.parentsPresent ? "Ja" : "Nein"}
+											</p>
+										</div>
+									</div>
+								</div>
+
+								{/* Themes */}
+								{printSession.themeTags && printSession.themeTags.length > 0 && (
+									<div className="mb-6">
+										<h3 className="font-semibold text-gray-700 mb-2">Themen</h3>
+										<div className="flex flex-wrap gap-2">
+											{printSession.themeTags.map((tag) => (
+												<span
+													key={tag}
+													className="px-3 py-1 bg-gray-200 rounded-full text-sm"
+												>
+													{THEME_TAGS.find((t) => t.value === tag)?.label || tag}
+												</span>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Occasion */}
+								<div className="mb-6">
+									<h3 className="font-semibold text-gray-700 mb-2">Anlass / Beobachtungen</h3>
+									<div className="p-4 border rounded-lg bg-white">
+										<p className="whitespace-pre-wrap">{printSession.occasion || "-"}</p>
+									</div>
+								</div>
+
+								{/* Strengths */}
+								{printSession.strengths && (
+									<div className="mb-6">
+										<h3 className="font-semibold mb-2" style={{ color: '#15803d' }}>Stärken</h3>
+										<div className="p-4 rounded-r-lg" style={{ borderLeft: '4px solid #22c55e', backgroundColor: '#f0fdf4' }}>
+											<p className="whitespace-pre-wrap">{printSession.strengths}</p>
+										</div>
+									</div>
+								)}
+
+								{/* Challenges */}
+								{printSession.challenges && (
+									<div className="mb-6">
+										<h3 className="font-semibold mb-2" style={{ color: '#c2410c' }}>Herausforderungen</h3>
+										<div className="p-4 rounded-r-lg" style={{ borderLeft: '4px solid #f97316', backgroundColor: '#fff7ed' }}>
+											<p className="whitespace-pre-wrap">{printSession.challenges}</p>
+										</div>
+									</div>
+								)}
+
+								{/* Goals / Next Steps */}
+								{printSession.nextSteps && (
+									<div className="mb-6">
+										<h3 className="font-semibold mb-2" style={{ color: '#1d4ed8' }}>Ziele / Nächste Schritte</h3>
+										<div className="p-4 rounded-r-lg" style={{ borderLeft: '4px solid #3b82f6', backgroundColor: '#eff6ff' }}>
+											<p className="whitespace-pre-wrap">{printSession.nextSteps}</p>
+										</div>
+									</div>
+								)}
+
+								{/* Goals Array (if exists) */}
+								{printSession.goals && printSession.goals.length > 0 && (
+									<div className="mb-6">
+										<h3 className="font-semibold mb-2" style={{ color: '#7c3aed' }}>Vereinbarte Ziele</h3>
+										<div className="space-y-2">
+											{printSession.goals.map((goal, index) => (
+												<div key={goal.id || index} className="p-3 border rounded-lg flex items-start gap-3">
+													<span className="w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium" style={{ backgroundColor: '#f3e8ff', color: '#7c3aed' }}>
+														{index + 1}
+													</span>
+													<div className="flex-1">
+														<p>{goal.description}</p>
+														<span className="text-xs text-gray-500">
+															Status: {goal.status === 'achieved' ? 'Erreicht' : 'Aktiv'}
+														</span>
+													</div>
+												</div>
+											))}
+										</div>
+									</div>
+								)}
+
+								{/* Footer */}
+								<div className="mt-12 pt-4 border-t text-center text-sm text-gray-500">
+									<p>Erstellt: {formatDate(new Date(printSession.createdAt))}</p>
+								</div>
+
+								{/* Close Button */}
+								<div className="mt-8 text-center">
+									<button
+										onClick={() => setPrintSession(null)}
+										className="px-6 py-3 rounded-lg mr-4"
+										style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+									>
+										Schliessen
+									</button>
+									<button
+										onClick={() => window.print()}
+										className="px-6 py-3 rounded-lg text-white"
+										style={{ backgroundColor: 'var(--primary)' }}
+									>
+										🖨️ Drucken
+									</button>
+								</div>
+							</div>
+						</div>
+
+						{/* Print version - static positioned for printing */}
+						<div className="print-single-session print-only">
 						<div className="max-w-2xl mx-auto">
 							{/* Header */}
 							<div className="text-center mb-8 pb-4 border-b-2 border-gray-800">
@@ -701,6 +848,7 @@ export default function CoachingPage() {
 							</div>
 						</div>
 					</div>
+					</>
 				);
 			})()}
 

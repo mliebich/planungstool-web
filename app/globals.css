@@ -85,29 +85,43 @@ input:focus, button:focus {
 }
 
 /* ==================== PRINT STYLES ==================== */
+
+/* Hide print-only elements on screen */
+.print-only {
+  display: none !important;
+}
+
 @media print {
-  /* Single session print - hide everything else */
-  body:has(.print-single-session) > *:not(.print-single-session),
-  body:has(.print-single-session) header,
-  body:has(.print-single-session) main,
-  body:has(.print-single-session) nav {
-    display: none !important;
+  /* Show print-only elements */
+  .print-only {
+    display: block !important;
   }
 
-  body:has(.print-single-session) .print-single-session {
+  /* Print single session - ensure it shows */
+  .print-single-session {
     display: block !important;
     position: static !important;
     padding: 20px !important;
+    background: white !important;
+  }
+
+  .print-single-session * {
+    color: black !important;
   }
 
   /* Hide non-printable elements */
   .no-print,
+  .print-hide,
+  .print-single-session-screen {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
   header,
   nav,
-  button:not(.print-include),
+  button,
   input,
-  select,
-  .print-hide {
+  select {
     display: none !important;
   }
 
