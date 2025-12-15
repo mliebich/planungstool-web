@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { storage } from "@/lib/services/storage";
 import classService from "@/lib/services/classService";
+import coachingService from "@/lib/services/coachingService";
 import {
 	CoachingSession,
-	CoachingThemeTag,
 	CoachingStatus,
 	Class,
 	Student,
@@ -15,17 +15,6 @@ import {
 import { formatDate } from "@/lib/utils/dateUtils";
 import { v4 as uuidv4 } from "uuid";
 import Link from "next/link";
-
-const THEME_TAGS: { value: CoachingThemeTag; label: string }[] = [
-	{ value: "learning_behavior", label: "Lernverhalten" },
-	{ value: "social_interaction", label: "Sozialverhalten" },
-	{ value: "motivation", label: "Motivation" },
-	{ value: "concentration", label: "Konzentration" },
-	{ value: "friendships", label: "Freundschaften" },
-	{ value: "independence", label: "Selbstständigkeit" },
-	{ value: "conflict_resolution", label: "Konfliktlösung" },
-	{ value: "other", label: "Sonstiges" },
-];
 
 const STATUS_OPTIONS: { value: CoachingStatus; label: string }[] = [
 	{ value: "planned", label: "Geplant" },
@@ -39,6 +28,7 @@ export default function CoachingPage() {
 
 	const [sessions, setSessions] = useState<CoachingSession[]>([]);
 	const [classes, setClasses] = useState<Class[]>([]);
+	const [themeTags, setThemeTags] = useState<{ value: string; label: string }[]>([]);
 	const [showAddModal, setShowAddModal] = useState(false);
 	const [editingSession, setEditingSession] = useState<CoachingSession | null>(
 		null,
@@ -53,7 +43,7 @@ export default function CoachingPage() {
 		date: new Date().toISOString().split("T")[0],
 		parentsPresent: false,
 		occasion: "",
-		themeTags: [] as CoachingThemeTag[],
+		themeTags: [] as string[],
 		strengths: "",
 		challenges: "",
 		nextSteps: "",
@@ -74,12 +64,21 @@ export default function CoachingPage() {
 
 	const loadData = async () => {
 		try {
-			const [loadedClasses, savedSessions] = await Promise.all([
+			const [loadedClasses, savedSessions, loadedTags] = await Promise.all([
 				classService.getAllClasses(),
 				storage.getItem("coachingSessions"),
+				coachingService.getCoachingTags(),
 			]);
 
 			setClasses(loadedClasses);
+
+			// Convert tags object to array format
+			const tagsArray = Object.entries(loadedTags).map(([key, label]) => ({
+				value: key,
+				label: label,
+			}));
+			setThemeTags(tagsArray);
+
 			if (savedSessions) {
 				const parsed = JSON.parse(savedSessions);
 				setSessions(
@@ -210,7 +209,7 @@ export default function CoachingPage() {
 		});
 	};
 
-	const toggleTag = (tag: CoachingThemeTag) => {
+	const toggleTag = (tag: string) => {
 		setFormData((prev) => ({
 			...prev,
 			themeTags: prev.themeTags.includes(tag)
@@ -237,7 +236,7 @@ export default function CoachingPage() {
 				if (s.classId !== selectedClassFilter) return false;
 			}
 			if (selectedTagFilter !== "all") {
-				if (!s.themeTags?.includes(selectedTagFilter as CoachingThemeTag))
+				if (!s.themeTags?.includes(selectedTagFilter))
 					return false;
 			}
 			return true;
@@ -377,7 +376,7 @@ export default function CoachingPage() {
 									style={{ borderColor: "var(--border)" }}
 								>
 									<option value="all">Alle</option>
-									{THEME_TAGS.map((tag) => (
+									{themeTags.map((tag) => (
 										<option key={tag.value} value={tag.value}>
 											{tag.label}
 										</option>
@@ -491,7 +490,7 @@ export default function CoachingPage() {
 																	color: "var(--text-primary)",
 																}}
 															>
-																{THEME_TAGS.find((t) => t.value === tag)
+																{themeTags.find((t) => t.value === tag)
 																	?.label || tag}
 															</span>
 														))}
@@ -611,7 +610,7 @@ export default function CoachingPage() {
 													key={tag}
 													className="px-3 py-1 bg-gray-200 rounded-full text-sm"
 												>
-													{THEME_TAGS.find((t) => t.value === tag)?.label || tag}
+													{themeTags.find((t) => t.value === tag)?.label || tag}
 												</span>
 											))}
 										</div>
@@ -756,7 +755,7 @@ export default function CoachingPage() {
 												key={tag}
 												className="px-3 py-1 bg-gray-200 rounded-full text-sm"
 											>
-												{THEME_TAGS.find((t) => t.value === tag)?.label || tag}
+												{themeTags.find((t) => t.value === tag)?.label || tag}
 											</span>
 										))}
 									</div>
@@ -976,7 +975,7 @@ export default function CoachingPage() {
 									Themen
 								</label>
 								<div className="flex flex-wrap gap-2">
-									{THEME_TAGS.map((tag) => (
+									{themeTags.map((tag) => (
 										<button
 											key={tag.value}
 											type="button"

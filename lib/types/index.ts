@@ -192,7 +192,7 @@ export interface CoachingSession {
 	date: string; // Datum & Uhrzeit (ISO string)
 	parentsPresent: boolean; // Elternteil anwesend
 	occasion: string; // Gesprächs-Anlass / Beobachtungen
-	themeTags: CoachingThemeTag[]; // Themen-Tags
+	themeTags: string[]; // Themen-Tags (dynamisch aus Einstellungen)
 	strengths: string; // Stärken der/des Schüler:in
 	challenges: string; // Herausforderungen / Besprochene Punkte
 	goals: CoachingGoal[]; // Vereinbarte Ziele
