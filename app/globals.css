@@ -86,6 +86,20 @@ input:focus, button:focus {
 
 /* ==================== PRINT STYLES ==================== */
 @media print {
+  /* Single session print - hide everything else */
+  body:has(.print-single-session) > *:not(.print-single-session),
+  body:has(.print-single-session) header,
+  body:has(.print-single-session) main,
+  body:has(.print-single-session) nav {
+    display: none !important;
+  }
+
+  body:has(.print-single-session) .print-single-session {
+    display: block !important;
+    position: static !important;
+    padding: 20px !important;
+  }
+
   /* Hide non-printable elements */
   .no-print,
   header,
@@ -219,5 +233,58 @@ input:focus, button:focus {
     font-size: 8pt;
     color: #999;
     padding: 10px;
+  }
+
+  /* Coaching session print colors */
+  .print-single-session .bg-green-50 {
+    background-color: #f0fdf4 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-single-session .border-green-500 {
+    border-color: #22c55e !important;
+  }
+  .print-single-session .text-green-700 {
+    color: #15803d !important;
+  }
+  .print-single-session .bg-orange-50 {
+    background-color: #fff7ed !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-single-session .border-orange-500 {
+    border-color: #f97316 !important;
+  }
+  .print-single-session .text-orange-700 {
+    color: #c2410c !important;
+  }
+  .print-single-session .bg-blue-50 {
+    background-color: #eff6ff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-single-session .border-blue-500 {
+    border-color: #3b82f6 !important;
+  }
+  .print-single-session .text-blue-700 {
+    color: #1d4ed8 !important;
+  }
+  .print-single-session .bg-purple-100 {
+    background-color: #f3e8ff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-single-session .text-purple-700 {
+    color: #7c3aed !important;
+  }
+  .print-single-session .bg-gray-50 {
+    background-color: #f9fafb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .print-single-session .bg-gray-200 {
+    background-color: #e5e7eb !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
 }

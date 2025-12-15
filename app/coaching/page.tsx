@@ -43,6 +43,7 @@ export default function CoachingPage() {
 	const [editingSession, setEditingSession] = useState<CoachingSession | null>(
 		null,
 	);
+	const [printSession, setPrintSession] = useState<CoachingSession | null>(null);
 	const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
 	const [selectedTagFilter, setSelectedTagFilter] = useState<string>("all");
 
@@ -254,6 +255,16 @@ export default function CoachingPage() {
 			default:
 				return "var(--gray-400)";
 		}
+	};
+
+	const handlePrintSession = (session: CoachingSession) => {
+		setPrintSession(session);
+		// Wait for state to update, then print
+		setTimeout(() => {
+			window.print();
+			// Reset after print dialog closes
+			setTimeout(() => setPrintSession(null), 500);
+		}, 100);
 	};
 
 	if (isLoading || !isAuthenticated) {
@@ -502,13 +513,20 @@ export default function CoachingPage() {
 													</p>
 												)}
 
-												<div className="flex gap-2 mt-2">
+												<div className="flex gap-2 mt-2 no-print">
 													<button
 														onClick={() => openEditModal(session)}
 														className="text-xs px-2 py-1 rounded"
 														style={{ backgroundColor: "var(--gray-200)" }}
 													>
 														Bearbeiten
+													</button>
+													<button
+														onClick={() => handlePrintSession(session)}
+														className="text-xs px-2 py-1 rounded"
+														style={{ backgroundColor: "var(--gray-200)" }}
+													>
+														🖨️ Drucken
 													</button>
 													<button
 														onClick={() => handleDeleteSession(session.id)}
@@ -527,6 +545,156 @@ export default function CoachingPage() {
 					</>
 				)}
 			</main>
+
+			{/* Single Session Print View */}
+			{printSession && (() => {
+				const studentInfo = getStudentById(printSession.studentId);
+				return (
+					<div className="hidden print:block print-single-session">
+						<style jsx>{`
+							@media print {
+								.print-single-session {
+									display: block !important;
+									position: fixed;
+									top: 0;
+									left: 0;
+									right: 0;
+									background: white;
+									z-index: 9999;
+									padding: 40px;
+								}
+								body > *:not(.print-single-session) {
+									display: none !important;
+								}
+							}
+						`}</style>
+						<div className="max-w-2xl mx-auto">
+							{/* Header */}
+							<div className="text-center mb-8 pb-4 border-b-2 border-gray-800">
+								<h1 className="text-2xl font-bold">Coaching-Gespräch</h1>
+								<p className="text-gray-600 mt-1">
+									Dokumentation vom {formatDate(new Date(printSession.date))}
+								</p>
+							</div>
+
+							{/* Student Info */}
+							<div className="mb-6 p-4 bg-gray-50 rounded-lg">
+								<div className="grid grid-cols-2 gap-4">
+									<div>
+										<span className="text-sm text-gray-500">Schüler:in</span>
+										<p className="font-semibold text-lg">
+											{studentInfo
+												? `${studentInfo.student.firstName} ${studentInfo.student.lastName}`
+												: "Unbekannt"}
+										</p>
+									</div>
+									<div>
+										<span className="text-sm text-gray-500">Klasse</span>
+										<p className="font-semibold text-lg">
+											{studentInfo?.className || "-"}
+										</p>
+									</div>
+									<div>
+										<span className="text-sm text-gray-500">Status</span>
+										<p className="font-semibold">
+											{STATUS_OPTIONS.find((s) => s.value === printSession.status)?.label}
+										</p>
+									</div>
+									<div>
+										<span className="text-sm text-gray-500">Eltern anwesend</span>
+										<p className="font-semibold">
+											{printSession.parentsPresent ? "Ja" : "Nein"}
+										</p>
+									</div>
+								</div>
+							</div>
+
+							{/* Themes */}
+							{printSession.themeTags && printSession.themeTags.length > 0 && (
+								<div className="mb-6">
+									<h3 className="font-semibold text-gray-700 mb-2">Themen</h3>
+									<div className="flex flex-wrap gap-2">
+										{printSession.themeTags.map((tag) => (
+											<span
+												key={tag}
+												className="px-3 py-1 bg-gray-200 rounded-full text-sm"
+											>
+												{THEME_TAGS.find((t) => t.value === tag)?.label || tag}
+											</span>
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Occasion */}
+							<div className="mb-6">
+								<h3 className="font-semibold text-gray-700 mb-2">Anlass / Beobachtungen</h3>
+								<div className="p-4 border rounded-lg bg-white">
+									<p className="whitespace-pre-wrap">{printSession.occasion || "-"}</p>
+								</div>
+							</div>
+
+							{/* Strengths */}
+							{printSession.strengths && (
+								<div className="mb-6">
+									<h3 className="font-semibold text-green-700 mb-2">Stärken</h3>
+									<div className="p-4 border-l-4 border-green-500 bg-green-50 rounded-r-lg">
+										<p className="whitespace-pre-wrap">{printSession.strengths}</p>
+									</div>
+								</div>
+							)}
+
+							{/* Challenges */}
+							{printSession.challenges && (
+								<div className="mb-6">
+									<h3 className="font-semibold text-orange-700 mb-2">Herausforderungen</h3>
+									<div className="p-4 border-l-4 border-orange-500 bg-orange-50 rounded-r-lg">
+										<p className="whitespace-pre-wrap">{printSession.challenges}</p>
+									</div>
+								</div>
+							)}
+
+							{/* Goals / Next Steps */}
+							{printSession.nextSteps && (
+								<div className="mb-6">
+									<h3 className="font-semibold text-blue-700 mb-2">Ziele / Nächste Schritte</h3>
+									<div className="p-4 border-l-4 border-blue-500 bg-blue-50 rounded-r-lg">
+										<p className="whitespace-pre-wrap">{printSession.nextSteps}</p>
+									</div>
+								</div>
+							)}
+
+							{/* Goals Array (if exists) */}
+							{printSession.goals && printSession.goals.length > 0 && (
+								<div className="mb-6">
+									<h3 className="font-semibold text-purple-700 mb-2">Vereinbarte Ziele</h3>
+									<div className="space-y-2">
+										{printSession.goals.map((goal, index) => (
+											<div key={goal.id || index} className="p-3 border rounded-lg flex items-start gap-3">
+												<span className="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-sm font-medium">
+													{index + 1}
+												</span>
+												<div className="flex-1">
+													<p>{goal.description}</p>
+													<span className="text-xs text-gray-500">
+														Status: {goal.status === 'achieved' ? 'Erreicht' : 'Aktiv'}
+													</span>
+												</div>
+											</div>
+										))}
+									</div>
+								</div>
+							)}
+
+							{/* Footer */}
+							<div className="mt-12 pt-4 border-t text-center text-sm text-gray-500">
+								<p>Erstellt: {formatDate(new Date(printSession.createdAt))}</p>
+								<p>Gedruckt: {new Date().toLocaleDateString("de-DE")}</p>
+							</div>
+						</div>
+					</div>
+				);
+			})()}
 
 			{/* Add/Edit Modal */}
 			{(showAddModal || editingSession) && (
