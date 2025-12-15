@@ -259,12 +259,6 @@ export default function CoachingPage() {
 
 	const handlePrintSession = (session: CoachingSession) => {
 		setPrintSession(session);
-		// Wait for state to update, then print
-		setTimeout(() => {
-			window.print();
-			// Reset after print dialog closes
-			setTimeout(() => setPrintSession(null), 500);
-		}, 100);
 	};
 
 	if (isLoading || !isAuthenticated) {
@@ -550,24 +544,20 @@ export default function CoachingPage() {
 			{printSession && (() => {
 				const studentInfo = getStudentById(printSession.studentId);
 				return (
-					<div className="hidden print:block print-single-session">
-						<style jsx>{`
-							@media print {
-								.print-single-session {
-									display: block !important;
-									position: fixed;
-									top: 0;
-									left: 0;
-									right: 0;
-									background: white;
-									z-index: 9999;
-									padding: 40px;
-								}
-								body > *:not(.print-single-session) {
-									display: none !important;
-								}
-							}
-						`}</style>
+					<div
+						className="print-single-session"
+						style={{
+							position: 'fixed',
+							top: 0,
+							left: 0,
+							right: 0,
+							bottom: 0,
+							background: 'white',
+							zIndex: 9999,
+							padding: '40px',
+							overflow: 'auto',
+						}}
+					>
 						<div className="max-w-2xl mx-auto">
 							{/* Header */}
 							<div className="text-center mb-8 pb-4 border-b-2 border-gray-800">
@@ -690,6 +680,24 @@ export default function CoachingPage() {
 							<div className="mt-12 pt-4 border-t text-center text-sm text-gray-500">
 								<p>Erstellt: {formatDate(new Date(printSession.createdAt))}</p>
 								<p>Gedruckt: {new Date().toLocaleDateString("de-DE")}</p>
+							</div>
+
+							{/* Close Button (hidden when printing) */}
+							<div className="mt-8 text-center no-print">
+								<button
+									onClick={() => setPrintSession(null)}
+									className="px-6 py-3 rounded-lg mr-4"
+									style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+								>
+									Schliessen
+								</button>
+								<button
+									onClick={() => window.print()}
+									className="px-6 py-3 rounded-lg text-white"
+									style={{ backgroundColor: 'var(--primary)' }}
+								>
+									🖨️ Drucken
+								</button>
 							</div>
 						</div>
 					</div>
