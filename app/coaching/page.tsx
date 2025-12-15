@@ -107,26 +107,15 @@ export default function CoachingPage() {
 	};
 
 	const handleAddSession = async () => {
-		if (!formData.studentId || !formData.occasion) {
-			alert("Bitte Schüler:in und Anlass angeben");
+		if (!formData.classId || !formData.studentId || !formData.occasion) {
+			alert("Bitte Klasse, Schüler:in und Anlass angeben");
 			return;
-		}
-
-		// Find the classId from the student
-		let classId = formData.classId;
-		if (!classId) {
-			for (const cls of classes) {
-				if (cls.students.some((s) => s.id === formData.studentId)) {
-					classId = cls.id;
-					break;
-				}
-			}
 		}
 
 		const newSession: CoachingSession = {
 			id: uuidv4(),
 			studentId: formData.studentId,
-			classId: classId,
+			classId: formData.classId,
 			date: formData.date,
 			parentsPresent: formData.parentsPresent,
 			occasion: formData.occasion,
@@ -863,6 +852,32 @@ export default function CoachingPage() {
 						</h2>
 
 						<div className="space-y-4 max-h-[60vh] overflow-y-auto">
+							{/* Klasse auswählen */}
+							<div>
+								<label
+									className="block text-sm font-medium mb-1"
+									style={{ color: "var(--text-secondary)" }}
+								>
+									Klasse *
+								</label>
+								<select
+									value={formData.classId}
+									onChange={(e) => {
+										setFormData({ ...formData, classId: e.target.value, studentId: "" });
+									}}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: "var(--border)" }}
+								>
+									<option value="">Klasse wählen...</option>
+									{classes.map((cls) => (
+										<option key={cls.id} value={cls.id}>
+											{cls.name}
+										</option>
+									))}
+								</select>
+							</div>
+
+							{/* Schüler:in auswählen (nur wenn Klasse gewählt) */}
 							<div>
 								<label
 									className="block text-sm font-medium mb-1"
@@ -873,30 +888,25 @@ export default function CoachingPage() {
 								<select
 									value={formData.studentId}
 									onChange={(e) => {
-										const studentId = e.target.value;
-										// Also update classId
-										let classId = "";
-										for (const cls of classes) {
-											if (cls.students.some((s) => s.id === studentId)) {
-												classId = cls.id;
-												break;
-											}
-										}
-										setFormData({ ...formData, studentId, classId });
+										setFormData({ ...formData, studentId: e.target.value });
 									}}
 									className="w-full px-4 py-3 rounded-lg border-2"
 									style={{ borderColor: "var(--border)" }}
+									disabled={!formData.classId}
 								>
-									<option value="">Wählen...</option>
-									{classes.map((cls) => (
-										<optgroup key={cls.id} label={cls.name}>
-											{cls.students.map((student) => (
+									<option value="">
+										{formData.classId ? "Schüler:in wählen..." : "Zuerst Klasse wählen"}
+									</option>
+									{formData.classId &&
+										classes
+											.find((c) => c.id === formData.classId)
+											?.students
+											.sort((a, b) => a.lastName.localeCompare(b.lastName))
+											.map((student) => (
 												<option key={student.id} value={student.id}>
 													{student.lastName}, {student.firstName}
 												</option>
 											))}
-										</optgroup>
-									))}
 								</select>
 							</div>
 
