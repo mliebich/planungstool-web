@@ -17,7 +17,7 @@ const MONTH_NAMES = [
 	'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'
 ];
 
-const WEEKDAY_NAMES = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+const WEEKDAY_NAMES = ['KW', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 
 export default function MonatsansichtPage() {
 	const { isAuthenticated, isLoading } = useAuth();
@@ -112,6 +112,28 @@ export default function MonatsansichtPage() {
 		return days;
 	};
 
+	// Gruppiere Tage in Wochen für die Anzeige mit Wochennummern
+	const getWeeksInMonth = () => {
+		const allDays = getDaysInMonth();
+		const weeks: { weekNumber: number; days: (Date | null)[] }[] = [];
+
+		for (let i = 0; i < allDays.length; i += 7) {
+			const weekDays = allDays.slice(i, i + 7);
+			// Finde das erste echte Datum in der Woche für die KW
+			const firstDateInWeek = weekDays.find(d => d !== null);
+			const weekNumber = firstDateInWeek ? getWeek(firstDateInWeek, { weekStartsOn: 1 }) : 0;
+
+			// Fülle die Woche auf 7 Tage auf
+			while (weekDays.length < 7) {
+				weekDays.push(null);
+			}
+
+			weeks.push({ weekNumber, days: weekDays });
+		}
+
+		return weeks;
+	};
+
 	const getLessonsForDate = (date: Date) => {
 		const dayOfWeek = date.getDay(); // 0 = Sunday
 		return lessons.filter(l => l.dayOfWeek === dayOfWeek);
@@ -151,7 +173,7 @@ export default function MonatsansichtPage() {
 		return visibleDays.includes(day);
 	};
 
-	const days = getDaysInMonth();
+	const weeks = getWeeksInMonth();
 
 	if (isLoading || !isAuthenticated) {
 		return (
@@ -228,13 +250,13 @@ export default function MonatsansichtPage() {
 				{/* Calendar Grid */}
 				<div className="bg-white rounded-xl shadow-sm p-4">
 					{/* Weekday Headers */}
-					<div className="grid grid-cols-7 gap-1 mb-2">
+					<div className="grid grid-cols-8 gap-1 mb-2">
 						{WEEKDAY_NAMES.map((day, idx) => (
 							<div
 								key={day}
-								className="text-center font-semibold py-2"
+								className={`text-center font-semibold py-2 ${idx === 0 ? 'text-xs' : ''}`}
 								style={{
-									color: idx >= 5 ? 'var(--text-secondary)' : 'var(--text-primary)',
+									color: idx === 0 ? 'var(--primary)' : idx >= 6 ? 'var(--text-secondary)' : 'var(--text-primary)',
 								}}
 							>
 								{day}
@@ -242,82 +264,98 @@ export default function MonatsansichtPage() {
 						))}
 					</div>
 
-					{/* Calendar Days */}
-					<div className="grid grid-cols-7 gap-1">
-						{days.map((date, index) => {
-							if (!date) {
-								return <div key={`empty-${index}`} className="min-h-[100px]" />;
-							}
-
-							const dayExams = getExamsForDate(date);
-							const dayBlockages = getBlockagesForDate(date);
-							const dayLessons = getLessonsForDate(date);
-							const weekNumber = getWeek(date, { weekStartsOn: 1 });
-							const visible = isVisibleDay(date);
-
-							return (
+					{/* Calendar Days with Week Numbers */}
+					<div className="space-y-1">
+						{weeks.map((week, weekIndex) => (
+							<div key={weekIndex} className="grid grid-cols-8 gap-1">
+								{/* Week Number Column */}
 								<div
-									key={date.toISOString()}
-									onClick={() => setSelectedDate(date)}
-									className={`min-h-[100px] p-1 rounded-lg cursor-pointer transition-all border ${
-										isToday(date)
-											? 'border-2 border-blue-500'
-											: selectedDate?.toDateString() === date.toDateString()
-											? 'border-2 border-blue-300'
-											: 'border-transparent'
-									} ${!visible ? 'opacity-50' : ''}`}
-									style={{
-										backgroundColor: isWeekend(date) ? 'var(--gray-100)' : 'var(--gray-50)',
+									className="min-h-[100px] flex items-center justify-center rounded-lg cursor-pointer hover:opacity-80"
+									style={{ backgroundColor: 'var(--primary-light)' }}
+									onClick={() => {
+										const firstDate = week.days.find(d => d !== null);
+										if (firstDate) {
+											router.push(`/wochenansicht?week=${week.weekNumber}&year=${firstDate.getFullYear()}`);
+										}
 									}}
+									title={`Zur Woche ${week.weekNumber}`}
 								>
-									<div className="flex justify-between items-start mb-1">
-										<span
-											className={`text-sm font-medium ${isToday(date) ? 'text-white bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center' : ''}`}
-											style={{ color: isToday(date) ? undefined : 'var(--text-primary)' }}
-										>
-											{date.getDate()}
-										</span>
-										{date.getDate() === 1 || index === 0 ? (
-											<span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
-												KW{weekNumber}
-											</span>
-										) : null}
-									</div>
-
-									{/* Events */}
-									<div className="space-y-0.5">
-										{dayBlockages.slice(0, 1).map(blockage => (
-											<div
-												key={blockage.id}
-												className="text-xs px-1 py-0.5 rounded truncate"
-												style={{ backgroundColor: 'var(--warning)', color: 'white' }}
-												title={blockage.title}
-											>
-												{blockage.title}
-											</div>
-										))}
-										{dayExams.slice(0, 2).map(exam => (
-											<div
-												key={exam.id}
-												className="text-xs px-1 py-0.5 rounded truncate"
-												style={{ backgroundColor: 'var(--danger)', color: 'white' }}
-												title={`${exam.title} (${getClassName(exam.classId)})`}
-											>
-												{exam.title}
-											</div>
-										))}
-										{dayLessons.length > 0 && dayExams.length < 2 && (
-											<div
-												className="text-xs px-1 py-0.5 rounded"
-												style={{ backgroundColor: 'var(--primary)', color: 'white' }}
-											>
-												{dayLessons.length} Lektionen
-											</div>
-										)}
-									</div>
+									<span className="text-sm font-bold" style={{ color: 'var(--primary)' }}>
+										{week.weekNumber}
+									</span>
 								</div>
-							);
-						})}
+
+								{/* Days */}
+								{week.days.map((date, dayIndex) => {
+									if (!date) {
+										return <div key={`empty-${weekIndex}-${dayIndex}`} className="min-h-[100px]" />;
+									}
+
+									const dayExams = getExamsForDate(date);
+									const dayBlockages = getBlockagesForDate(date);
+									const dayLessons = getLessonsForDate(date);
+									const visible = isVisibleDay(date);
+
+									return (
+										<div
+											key={date.toISOString()}
+											onClick={() => setSelectedDate(date)}
+											className={`min-h-[100px] p-1 rounded-lg cursor-pointer transition-all border ${
+												isToday(date)
+													? 'border-2 border-blue-500'
+													: selectedDate?.toDateString() === date.toDateString()
+													? 'border-2 border-blue-300'
+													: 'border-transparent'
+											} ${!visible ? 'opacity-50' : ''}`}
+											style={{
+												backgroundColor: isWeekend(date) ? 'var(--gray-100)' : 'var(--gray-50)',
+											}}
+										>
+											<div className="flex justify-between items-start mb-1">
+												<span
+													className={`text-sm font-medium ${isToday(date) ? 'text-white bg-blue-500 rounded-full w-6 h-6 flex items-center justify-center' : ''}`}
+													style={{ color: isToday(date) ? undefined : 'var(--text-primary)' }}
+												>
+													{date.getDate()}
+												</span>
+											</div>
+
+											{/* Events */}
+											<div className="space-y-0.5">
+												{dayBlockages.slice(0, 1).map(blockage => (
+													<div
+														key={blockage.id}
+														className="text-xs px-1 py-0.5 rounded truncate"
+														style={{ backgroundColor: 'var(--warning)', color: 'white' }}
+														title={blockage.title}
+													>
+														{blockage.title}
+													</div>
+												))}
+												{dayExams.slice(0, 2).map(exam => (
+													<div
+														key={exam.id}
+														className="text-xs px-1 py-0.5 rounded truncate"
+														style={{ backgroundColor: 'var(--danger)', color: 'white' }}
+														title={`${exam.title} (${getClassName(exam.classId)})`}
+													>
+														{exam.title}
+													</div>
+												))}
+												{dayLessons.length > 0 && dayExams.length < 2 && (
+													<div
+														className="text-xs px-1 py-0.5 rounded"
+														style={{ backgroundColor: 'var(--primary)', color: 'white' }}
+													>
+														{dayLessons.length} Lektionen
+													</div>
+												)}
+											</div>
+										</div>
+									);
+								})}
+							</div>
+						))}
 					</div>
 				</div>
 
