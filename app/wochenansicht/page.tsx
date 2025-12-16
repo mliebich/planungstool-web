@@ -259,13 +259,13 @@ function WochenansichtContent() {
 				</div>
 			</header>
 
-			{/* Print Header (hidden on screen) */}
-			<div className="print-header hidden">
+			{/* Print Header for week view (hidden on screen, hidden when printing day) */}
+			<div className={`print-header hidden ${printDay ? 'no-print' : ''}`}>
 				<h1>Wochenansicht - KW {currentWeek} / {currentYear}</h1>
 				<p>Gedruckt am {new Date().toLocaleDateString('de-DE')}</p>
 			</div>
 
-			<main className="max-w-7xl mx-auto px-4 py-6">
+			<main className={`max-w-7xl mx-auto px-4 py-6 ${printDay ? 'no-print' : ''}`}>
 				{visibleDays.length === 0 ? (
 					<div className="bg-white rounded-xl p-8 text-center shadow-sm">
 						<p style={{ color: 'var(--text-secondary)' }}>
