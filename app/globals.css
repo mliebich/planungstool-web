@@ -230,10 +230,17 @@ input:focus, button:focus {
     print-color-adjust: exact !important;
   }
 
-  /* Links */
+  /* Links - Standard schwarz, aber Material-Links farbig */
   a {
     text-decoration: none;
     color: black !important;
+  }
+
+  a[href^="http"] {
+    color: #0066CC !important;
+    text-decoration: underline !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   /* Footer with date */
@@ -397,12 +404,15 @@ input:focus, button:focus {
     font-size: 8pt;
   }
 
-  .print-lesson-material a {
+  .print-lesson-material a,
+  .print-day-overview a {
     display: block !important;
-    color: #0000EE !important;
+    color: #0066CC !important;
     text-decoration: underline !important;
     font-size: 8pt;
     margin-top: 2px;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .print-day-footer {
