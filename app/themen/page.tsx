@@ -346,13 +346,25 @@ export default function ThemenPage() {
 			return;
 		}
 
+		// URL normalisieren (https:// hinzufügen falls fehlt)
+		const normalizeUrl = (url: string): string => {
+			const trimmed = url.trim();
+			if (!trimmed) return '';
+			if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+				return trimmed;
+			}
+			return 'https://' + trimmed;
+		};
+
+		const normalizedUrl = normalizeUrl(materialForm.url);
+
 		const newMaterial: Material = {
 			id: uuidv4(),
 			title: materialForm.title,
 			type: materialForm.type,
 			description: materialForm.description || undefined,
 			plannedLessons: materialForm.plannedLessons,
-			urls: materialForm.url.trim() ? [materialForm.url.trim()] : undefined,
+			urls: normalizedUrl ? [normalizedUrl] : undefined,
 		};
 
 		const updatedThemes = themes.map(t =>
@@ -373,6 +385,18 @@ export default function ThemenPage() {
 	const handleUpdateMaterial = async () => {
 		if (!selectedTheme || !editingMaterial) return;
 
+		// URL normalisieren (https:// hinzufügen falls fehlt)
+		const normalizeUrl = (url: string): string => {
+			const trimmed = url.trim();
+			if (!trimmed) return '';
+			if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+				return trimmed;
+			}
+			return 'https://' + trimmed;
+		};
+
+		const normalizedUrl = normalizeUrl(materialForm.url);
+
 		const updatedMaterials = (selectedTheme.materials || []).map(m =>
 			m.id === editingMaterial.id
 				? {
@@ -381,7 +405,7 @@ export default function ThemenPage() {
 						type: materialForm.type,
 						description: materialForm.description || undefined,
 						plannedLessons: materialForm.plannedLessons,
-						urls: materialForm.url.trim() ? [materialForm.url.trim()] : undefined,
+						urls: normalizedUrl ? [normalizedUrl] : undefined,
 				  }
 				: m
 		);
