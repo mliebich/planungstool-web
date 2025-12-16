@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { storage } from '@/lib/services/storage';
 import settingsService from '@/lib/services/settingsService';
-import { Lesson, Theme, WeekPlan } from '@/lib/types';
+import { Lesson, Theme, WeekPlan, Material } from '@/lib/types';
 import { DayOfWeek } from '@/lib/types/settings';
 import { getCurrentWeek, getCurrentYear, getWeekDays, formatDate } from '@/lib/utils/dateUtils';
 import { getClassColor, ClassColorConfig } from '@/lib/utils/colorUtils';
@@ -44,6 +44,7 @@ function WochenansichtContent() {
 	const [weekPlan, setWeekPlan] = useState<WeekPlan | null>(null);
 	const [visibleDays, setVisibleDays] = useState<Array<{ index: number; name: string }>>([]);
 	const [customColors, setCustomColors] = useState<ClassColorConfig>({});
+	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -300,8 +301,9 @@ function WochenansichtContent() {
 												>
 													{lesson ? (
 														<div
-															className="p-2 rounded-lg text-white min-h-[80px] cursor-pointer hover:opacity-90"
+															className="p-2 rounded-lg text-white min-h-[80px] cursor-pointer hover:opacity-90 transition-opacity"
 															style={{ backgroundColor: bgColor }}
+															onClick={() => setSelectedLesson(lesson)}
 														>
 															<div className="font-semibold text-sm">{lesson.subject}</div>
 															{lesson.class && (
@@ -382,6 +384,130 @@ function WochenansichtContent() {
 					</button>
 				</div>
 			</main>
+
+			{/* Lesson Detail Modal */}
+			{selectedLesson && (
+				<div
+					className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+					onClick={() => setSelectedLesson(null)}
+				>
+					<div
+						className="bg-white rounded-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto"
+						onClick={e => e.stopPropagation()}
+					>
+						{(() => {
+							const theme = getThemeForLesson(selectedLesson);
+							const material = getMaterialForLesson(selectedLesson);
+							const bgColor = selectedLesson.class
+								? getClassColor(selectedLesson.class, customColors)
+								: 'var(--primary)';
+
+							return (
+								<>
+									{/* Header */}
+									<div
+										className="p-4 rounded-xl text-white mb-4"
+										style={{ backgroundColor: bgColor }}
+									>
+										<h2 className="text-xl font-bold">{selectedLesson.subject}</h2>
+										<div className="flex flex-wrap gap-2 mt-2 text-sm opacity-90">
+											{selectedLesson.class && <span>{selectedLesson.class}</span>}
+											{selectedLesson.room && <span>• {selectedLesson.room}</span>}
+											<span>• {selectedLesson.startTime} - {selectedLesson.endTime}</span>
+										</div>
+									</div>
+
+									{/* Theme Info */}
+									{theme && (
+										<div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--primary-light)' }}>
+											<h3 className="font-semibold mb-1" style={{ color: 'var(--primary)' }}>
+												Thema
+											</h3>
+											<p className="font-medium" style={{ color: 'var(--text-primary)' }}>
+												{theme.name}
+											</p>
+											{theme.description && (
+												<p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+													{theme.description}
+												</p>
+											)}
+											<p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+												KW {theme.startWeek} - {theme.endWeek} / {theme.year}
+											</p>
+										</div>
+									)}
+
+									{/* Material Info */}
+									{material && (
+										<div className="mb-4 p-4 rounded-lg border-2" style={{ borderColor: 'var(--secondary)', backgroundColor: 'var(--secondary-light)' }}>
+											<h3 className="font-semibold mb-2" style={{ color: 'var(--secondary)' }}>
+												Material für diese Lektion
+											</h3>
+											<div className="space-y-2">
+												<div className="flex items-center gap-2">
+													<span className="text-lg">
+														{material.type === 'link' ? '🔗' :
+														 material.type === 'pdf' ? '📄' :
+														 material.type === 'video' ? '🎬' :
+														 material.type === 'exercise' ? '✏️' : '📝'}
+													</span>
+													<span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+														{material.title}
+													</span>
+												</div>
+												{material.description && (
+													<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+														{material.description}
+													</p>
+												)}
+												{material.urls && material.urls.length > 0 && (
+													<div className="mt-2 space-y-1">
+														{material.urls.map((url, i) => (
+															<a
+																key={i}
+																href={url}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="block text-sm underline"
+																style={{ color: 'var(--primary)' }}
+															>
+																{url}
+															</a>
+														))}
+													</div>
+												)}
+												{material.plannedLessons && (
+													<p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+														Geplant für {material.plannedLessons} Lektion(en)
+													</p>
+												)}
+											</div>
+										</div>
+									)}
+
+									{/* No Material */}
+									{!material && !theme && (
+										<div className="mb-4 p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--gray-50)' }}>
+											<p style={{ color: 'var(--text-secondary)' }}>
+												Keine Materialien zugewiesen
+											</p>
+										</div>
+									)}
+
+									{/* Close Button */}
+									<button
+										onClick={() => setSelectedLesson(null)}
+										className="w-full py-3 rounded-lg font-semibold"
+										style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+									>
+										Schliessen
+									</button>
+								</>
+							);
+						})()}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }
