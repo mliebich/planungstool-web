@@ -40,6 +40,7 @@ export default function ThemenPage() {
 		type: 'document' as Material['type'],
 		description: '',
 		plannedLessons: 1,
+		url: '',
 	});
 
 	useEffect(() => {
@@ -351,6 +352,7 @@ export default function ThemenPage() {
 			type: materialForm.type,
 			description: materialForm.description || undefined,
 			plannedLessons: materialForm.plannedLessons,
+			urls: materialForm.url.trim() ? [materialForm.url.trim()] : undefined,
 		};
 
 		const updatedThemes = themes.map(t =>
@@ -379,6 +381,7 @@ export default function ThemenPage() {
 						type: materialForm.type,
 						description: materialForm.description || undefined,
 						plannedLessons: materialForm.plannedLessons,
+						urls: materialForm.url.trim() ? [materialForm.url.trim()] : undefined,
 				  }
 				: m
 		);
@@ -417,6 +420,7 @@ export default function ThemenPage() {
 			type: 'document',
 			description: '',
 			plannedLessons: 1,
+			url: '',
 		});
 	};
 
@@ -427,6 +431,7 @@ export default function ThemenPage() {
 			type: material.type,
 			description: material.description || '',
 			plannedLessons: material.plannedLessons ?? 1,
+			url: material.urls?.[0] || '',
 		});
 	};
 
@@ -615,6 +620,17 @@ export default function ThemenPage() {
 															<p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
 																{material.description}
 															</p>
+														)}
+														{material.urls && material.urls.length > 0 && (
+															<a
+																href={material.urls[0]}
+																target="_blank"
+																rel="noopener noreferrer"
+																className="text-sm mt-1 block underline truncate"
+																style={{ color: 'var(--primary)' }}
+															>
+																{material.urls[0]}
+															</a>
 														)}
 														{material.plannedLessons && (
 														<p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
@@ -853,6 +869,20 @@ export default function ThemenPage() {
 									onChange={e => setMaterialForm({ ...materialForm, plannedLessons: parseInt(e.target.value) || 1 })}
 									className="w-full px-4 py-3 rounded-lg border-2"
 									style={{ borderColor: 'var(--border)' }}
+								/>
+							</div>
+
+							<div>
+								<label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+									Link / URL
+								</label>
+								<input
+									type="url"
+									value={materialForm.url}
+									onChange={e => setMaterialForm({ ...materialForm, url: e.target.value })}
+									className="w-full px-4 py-3 rounded-lg border-2"
+									style={{ borderColor: 'var(--border)' }}
+									placeholder="https://..."
 								/>
 							</div>
 
