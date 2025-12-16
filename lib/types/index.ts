@@ -121,7 +121,7 @@ export interface Student {
 // Klassen-Interface
 export interface Class {
 	id: string;
-	name: string; // z.B. "5a", "Mathematik Gruppe A"
+	name: string; // z.B. "5a", "Chemie Gruppe A"
 	description?: string;
 	grade: string; // z.B. "5. Klasse", "Oberstufe"
 	schoolYear: string; // z.B. "2023/2024"
@@ -136,8 +136,8 @@ export interface Class {
 // Prüfungs-Interface
 export interface Exam {
 	id: string;
-	title: string; // z.B. "Mathematik Test Kapitel 5"
-	subject: string; // z.B. "Mathematik", "Deutsch"
+	title: string; // z.B. "Chemie Test Kapitel 5"
+	subject: string; // z.B. "Chemie", "Informatik"
 	classId: string; // Referenz zur Klasse
 	date: string; // Prüfungsdatum (YYYY-MM-DD)
 	maxPoints: number; // Maximale Punktzahl
