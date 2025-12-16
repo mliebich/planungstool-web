@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import { storage } from '@/lib/services/storage';
-import { Theme, Material } from '@/lib/types';
-import { getCurrentWeek, getCurrentYear } from '@/lib/utils/dateUtils';
+import { Theme, Material, Lesson, Blockage } from '@/lib/types';
+import { getCurrentWeek, getCurrentYear, timeToMinutes } from '@/lib/utils/dateUtils';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 
@@ -14,11 +14,15 @@ export default function ThemenPage() {
 	const router = useRouter();
 
 	const [themes, setThemes] = useState<Theme[]>([]);
+	const [lessons, setLessons] = useState<Lesson[]>([]);
+	const [blockages, setBlockages] = useState<Blockage[]>([]);
 	const [selectedTheme, setSelectedTheme] = useState<Theme | null>(null);
 	const [showThemeModal, setShowThemeModal] = useState(false);
 	const [showMaterialModal, setShowMaterialModal] = useState(false);
+	const [showActivateModal, setShowActivateModal] = useState(false);
 	const [editingTheme, setEditingTheme] = useState<Theme | null>(null);
 	const [editingMaterial, setEditingMaterial] = useState<Material | null>(null);
+	const [activatingTheme, setActivatingTheme] = useState<Theme | null>(null);
 
 	const [themeForm, setThemeForm] = useState({
 		name: '',
@@ -56,6 +60,21 @@ export default function ThemenPage() {
 			if (savedThemes) {
 				setThemes(JSON.parse(savedThemes));
 			}
+
+			const savedLessons = await storage.getItem('lessons');
+			if (savedLessons) {
+				setLessons(JSON.parse(savedLessons));
+			}
+
+			const savedBlockages = await storage.getItem('blockages');
+			if (savedBlockages) {
+				const parsed = JSON.parse(savedBlockages);
+				setBlockages(parsed.map((b: Blockage) => ({
+					...b,
+					startDate: new Date(b.startDate),
+					endDate: new Date(b.endDate),
+				})));
+			}
 		} catch (error) {
 			console.error('Fehler beim Laden:', error);
 		}
@@ -68,6 +87,170 @@ export default function ThemenPage() {
 		} catch (error) {
 			console.error('Fehler beim Speichern:', error);
 		}
+	};
+
+	const saveLessons = async (updatedLessons: Lesson[]) => {
+		try {
+			await storage.setItem('lessons', JSON.stringify(updatedLessons));
+			setLessons(updatedLessons);
+		} catch (error) {
+			console.error('Fehler beim Speichern:', error);
+		}
+	};
+
+	// Prüft ob ein Thema aktive Lektionen hat
+	const hasActiveLessons = (themeId: string) => {
+		return lessons.some(lesson => lesson.themeId === themeId);
+	};
+
+	// Berechnet Kalenderwoche aus Datum
+	const getWeekFromDate = (date: Date): number => {
+		const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+		const dayNum = d.getUTCDay() || 7;
+		d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+		const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+		return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+	};
+
+	// Prüft auf Blockierungen im Zeitraum
+	const checkBlockages = (startWeek: number, endWeek: number, year: number): { week: number; title: string }[] => {
+		const interferingBlockages: { week: number; title: string }[] = [];
+
+		blockages.forEach(blockage => {
+			const startBlockageWeek = getWeekFromDate(blockage.startDate);
+			const endBlockageWeek = getWeekFromDate(blockage.endDate);
+
+			for (let week = startBlockageWeek; week <= endBlockageWeek; week++) {
+				if (week >= startWeek && week <= endWeek) {
+					if (!interferingBlockages.find(b => b.week === week)) {
+						interferingBlockages.push({ week, title: blockage.title });
+					}
+				}
+			}
+		});
+
+		return interferingBlockages;
+	};
+
+	// Aktiviert ein Thema und verteilt Materialien auf Lektionen
+	const activateTheme = async (theme: Theme) => {
+		const targetClass = theme.targetClass || theme.classLevel;
+
+		// Finde Basis-Lektionen für die Zielklasse (ohne bereits zugewiesenes Thema)
+		const baseLessonsForClass = lessons.filter(
+			lesson =>
+				lesson.class === targetClass &&
+				lesson.dayOfWeek >= 1 && lesson.dayOfWeek <= 5 &&
+				!lesson.themeId
+		);
+
+		if (baseLessonsForClass.length === 0) {
+			alert(`Keine Lektionen für Klasse "${targetClass}" gefunden. Bitte zuerst im Stundenplan Lektionen für diese Klasse anlegen.`);
+			return;
+		}
+
+		// Sortiere Lektionen nach Tag und Zeit
+		const sortedBaseLessons = [...baseLessonsForClass].sort((a, b) => {
+			if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+			return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+		});
+
+		// Berechne benötigte Lektionen
+		const totalRequiredLessons = theme.materials.reduce((total, material) => {
+			return total + (material.plannedLessons || 0);
+		}, 0);
+
+		// Berechne verfügbare Lektionen
+		const weekCount = theme.endWeek - theme.startWeek + 1;
+		const lessonsPerWeek = sortedBaseLessons.length;
+		const totalAvailableLessons = lessonsPerWeek * weekCount;
+
+		if (totalRequiredLessons > totalAvailableLessons) {
+			const proceed = confirm(
+				`Nicht genügend Lektionen verfügbar.\n\n` +
+				`Benötigt: ${totalRequiredLessons} Lektionen\n` +
+				`Verfügbar: ${totalAvailableLessons} Lektionen (${lessonsPerWeek} pro Woche × ${weekCount} Wochen)\n\n` +
+				`Trotzdem fortfahren? Überschüssige Materialien werden nicht verteilt.`
+			);
+			if (!proceed) return;
+		}
+
+		// Erstelle Wochen-Array
+		const weeksArray: number[] = [];
+		for (let w = theme.startWeek; w <= theme.endWeek; w++) {
+			weeksArray.push(w);
+		}
+
+		// Erstelle Lektions-Instanzen mit zugewiesenen Materialien
+		const newLessonInstances: Lesson[] = [];
+		const assignedLessonIds: string[] = [];
+		let totalLessonsCreated = 0;
+		let lessonInstanceId = 1;
+
+		for (const material of theme.materials) {
+			const plannedLessons = material.plannedLessons || 0;
+
+			for (let lessonNum = 0; lessonNum < plannedLessons; lessonNum++) {
+				if (totalLessonsCreated >= totalAvailableLessons) break;
+
+				const weekIndex = Math.floor(totalLessonsCreated / sortedBaseLessons.length);
+				const lessonIndexInWeek = totalLessonsCreated % sortedBaseLessons.length;
+
+				if (weekIndex >= weeksArray.length) break;
+
+				const currentWeek = weeksArray[weekIndex];
+				const baseLesson = sortedBaseLessons[lessonIndexInWeek];
+
+				const newLessonInstance: Lesson = {
+					...baseLesson,
+					id: `${baseLesson.id}_theme_${theme.id}_week_${currentWeek}_${lessonInstanceId++}`,
+					themeId: theme.id,
+					plannedWeek: currentWeek,
+					assignedMaterialId: material.id,
+				};
+
+				newLessonInstances.push(newLessonInstance);
+				assignedLessonIds.push(newLessonInstance.id);
+				totalLessonsCreated++;
+			}
+		}
+
+		// Speichere aktualisierte Lektionen
+		const updatedLessons = [...lessons, ...newLessonInstances];
+		await saveLessons(updatedLessons);
+
+		// Aktualisiere Thema mit zugewiesenen Lektionen
+		const updatedThemes = themes.map(t =>
+			t.id === theme.id
+				? { ...t, assignedLessons: assignedLessonIds }
+				: t
+		);
+		await saveThemes(updatedThemes);
+
+		alert(`Thema "${theme.name}" aktiviert!\n\n${totalLessonsCreated} Lektionen wurden erstellt und Materialien zugewiesen.`);
+		setShowActivateModal(false);
+		setActivatingTheme(null);
+	};
+
+	// Deaktiviert ein Thema und entfernt alle zugehörigen Lektionen
+	const deactivateTheme = async (theme: Theme) => {
+		if (!confirm(`Thema "${theme.name}" wirklich deaktivieren?\n\nAlle zugewiesenen Lektionen werden entfernt.`)) {
+			return;
+		}
+
+		// Entferne alle Lektionen mit diesem Thema
+		const updatedLessons = lessons.filter(lesson => lesson.themeId !== theme.id);
+		await saveLessons(updatedLessons);
+
+		// Aktualisiere Thema
+		const updatedThemes = themes.map(t =>
+			t.id === theme.id
+				? { ...t, assignedLessons: [] }
+				: t
+		);
+		await saveThemes(updatedThemes);
+
+		alert(`Thema "${theme.name}" wurde deaktiviert.`);
 	};
 
 	const handleAddTheme = async () => {
@@ -328,8 +511,34 @@ export default function ThemenPage() {
 												<p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
 													KW {theme.startWeek}-{theme.endWeek} / {theme.year} • {theme.materials?.length || 0} Materialien
 												</p>
+												{hasActiveLessons(theme.id) && (
+													<span className="inline-block mt-1 text-xs px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: 'var(--secondary)' }}>
+														Aktiv
+													</span>
+												)}
 											</div>
-											<div className="flex gap-1">
+											<div className="flex gap-1 flex-wrap">
+												{hasActiveLessons(theme.id) ? (
+													<button
+														onClick={e => { e.stopPropagation(); deactivateTheme(theme); }}
+														className="px-2 py-1 rounded text-xs text-white"
+														style={{ backgroundColor: 'var(--warning)' }}
+													>
+														Deaktivieren
+													</button>
+												) : (
+													<button
+														onClick={e => {
+															e.stopPropagation();
+															setActivatingTheme(theme);
+															setShowActivateModal(true);
+														}}
+														className="px-2 py-1 rounded text-xs text-white"
+														style={{ backgroundColor: 'var(--secondary)' }}
+													>
+														Aktivieren
+													</button>
+												)}
 												<button
 													onClick={e => { e.stopPropagation(); openEditTheme(theme); }}
 													className="px-2 py-1 rounded text-xs"
@@ -679,6 +888,90 @@ export default function ThemenPage() {
 								style={{ backgroundColor: 'var(--primary)' }}
 							>
 								{editingMaterial ? 'Speichern' : 'Erstellen'}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
+
+			{/* Activate Theme Modal */}
+			{showActivateModal && activatingTheme && (
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+					<div className="bg-white rounded-2xl p-6 w-full max-w-lg">
+						<h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
+							Thema aktivieren
+						</h2>
+
+						<div className="space-y-4">
+							<div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }}>
+								<h3 className="font-semibold" style={{ color: 'var(--text-primary)' }}>
+									{activatingTheme.name}
+								</h3>
+								<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+									Klasse: {activatingTheme.targetClass || activatingTheme.classLevel}
+								</p>
+								<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+									Zeitraum: KW {activatingTheme.startWeek} - {activatingTheme.endWeek} / {activatingTheme.year}
+								</p>
+								<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+									Materialien: {activatingTheme.materials?.length || 0} (
+									{activatingTheme.materials?.reduce((sum, m) => sum + (m.plannedLessons || 0), 0) || 0} Lektionen geplant)
+								</p>
+							</div>
+
+							{/* Blockierungs-Warnung */}
+							{(() => {
+								const interferingBlockages = checkBlockages(
+									activatingTheme.startWeek,
+									activatingTheme.endWeek,
+									activatingTheme.year
+								);
+								if (interferingBlockages.length > 0) {
+									return (
+										<div className="p-4 rounded-lg border-2" style={{ backgroundColor: '#fff3cd', borderColor: 'var(--warning)' }}>
+											<p className="font-semibold" style={{ color: 'var(--warning)' }}>
+												Achtung: Blockierungen im Zeitraum
+											</p>
+											<ul className="mt-2 text-sm" style={{ color: 'var(--text-primary)' }}>
+												{interferingBlockages.map((b, i) => (
+													<li key={i}>KW {b.week}: {b.title}</li>
+												))}
+											</ul>
+											<p className="mt-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
+												Die Materialien werden trotzdem auf die verfügbaren Lektionen verteilt.
+											</p>
+										</div>
+									);
+								}
+								return null;
+							})()}
+
+							<div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--primary-light)' }}>
+								<p className="text-sm" style={{ color: 'var(--text-primary)' }}>
+									Beim Aktivieren werden automatisch Lektionen für die Klasse{' '}
+									<strong>{activatingTheme.targetClass || activatingTheme.classLevel}</strong> erstellt
+									und die Materialien darauf verteilt.
+								</p>
+							</div>
+						</div>
+
+						<div className="flex gap-3 mt-6">
+							<button
+								onClick={() => {
+									setShowActivateModal(false);
+									setActivatingTheme(null);
+								}}
+								className="flex-1 py-3 rounded-lg font-semibold"
+								style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+							>
+								Abbrechen
+							</button>
+							<button
+								onClick={() => activateTheme(activatingTheme)}
+								className="flex-1 py-3 rounded-lg font-semibold text-white"
+								style={{ backgroundColor: 'var(--secondary)' }}
+							>
+								Aktivieren
 							</button>
 						</div>
 					</div>

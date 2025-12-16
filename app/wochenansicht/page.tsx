@@ -126,11 +126,25 @@ function WochenansichtContent() {
 		setCurrentYear(getCurrentYear());
 	};
 
-	const getLessonForSlot = (dayIndex: number, timeSlot: string) => {
+	const getLessonsForSlot = (dayIndex: number, timeSlot: string) => {
 		const [slotStart] = timeSlot.split('-');
-		return lessons.find(
-			l => l.dayOfWeek === dayIndex && l.startTime === slotStart
+
+		// Finde alle Lektionen für diesen Slot
+		const slotLessons = lessons.filter(l => l.dayOfWeek === dayIndex && l.startTime === slotStart);
+
+		// Priorisiere Theme-Lektionen mit passender plannedWeek
+		const themeLessonsForWeek = slotLessons.filter(l =>
+			l.themeId && l.plannedWeek === currentWeek
 		);
+
+		// Falls Theme-Lektionen für diese Woche existieren, zeige diese
+		if (themeLessonsForWeek.length > 0) {
+			return themeLessonsForWeek[0];
+		}
+
+		// Ansonsten zeige normale Lektionen (ohne Thema)
+		const normalLessons = slotLessons.filter(l => !l.themeId);
+		return normalLessons.length > 0 ? normalLessons[0] : null;
 	};
 
 	const getThemeForLesson = (lesson: Lesson) => {
@@ -272,7 +286,7 @@ function WochenansichtContent() {
 											{timeSlot}
 										</td>
 										{visibleDays.map(day => {
-											const lesson = getLessonForSlot(day.index, timeSlot);
+											const lesson = getLessonsForSlot(day.index, timeSlot);
 											const theme = lesson ? getThemeForLesson(lesson) : null;
 											const material = lesson ? getMaterialForLesson(lesson) : null;
 											const bgColor = lesson?.class
