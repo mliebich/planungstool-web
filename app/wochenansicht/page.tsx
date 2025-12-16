@@ -187,10 +187,16 @@ function WochenansichtContent() {
 			});
 	};
 
-	// Druckt die Tagesübersicht
-	const handlePrintDay = () => {
-		window.print();
-	};
+	// Druckt die Tagesübersicht direkt
+	useEffect(() => {
+		if (printDay) {
+			// Kurze Verzögerung damit das DOM aktualisiert wird
+			const timer = setTimeout(() => {
+				window.print();
+			}, 100);
+			return () => clearTimeout(timer);
+		}
+	}, [printDay]);
 
 	const weekDays = getWeekDays(currentWeek, currentYear);
 
@@ -640,21 +646,14 @@ function WochenansichtContent() {
 								)}
 							</div>
 
-							{/* Buttons */}
-							<div className="flex gap-3 mt-6">
+							{/* Button */}
+							<div className="mt-6">
 								<button
 									onClick={() => setPrintDay(null)}
-									className="flex-1 py-3 rounded-lg font-semibold"
+									className="w-full py-3 rounded-lg font-semibold"
 									style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
 								>
 									Schliessen
-								</button>
-								<button
-									onClick={handlePrintDay}
-									className="flex-1 py-3 rounded-lg font-semibold text-white"
-									style={{ backgroundColor: 'var(--primary)' }}
-								>
-									🖨️ Drucken
 								</button>
 							</div>
 						</div>
