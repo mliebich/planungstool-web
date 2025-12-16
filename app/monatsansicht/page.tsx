@@ -250,7 +250,7 @@ export default function MonatsansichtPage() {
 				{/* Calendar Grid */}
 				<div className="bg-white rounded-xl shadow-sm p-4">
 					{/* Weekday Headers */}
-					<div className="grid gap-1 mb-2" style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}>
+					<div className="grid gap-1 mb-2" style={{ gridTemplateColumns: '40px repeat(7, minmax(0, 1fr))' }}>
 						{WEEKDAY_NAMES.map((day, idx) => (
 							<div
 								key={day}
@@ -267,7 +267,7 @@ export default function MonatsansichtPage() {
 					{/* Calendar Days with Week Numbers */}
 					<div className="space-y-1">
 						{weeks.map((week, weekIndex) => (
-							<div key={weekIndex} className="grid gap-1" style={{ gridTemplateColumns: '40px repeat(7, 1fr)' }}>
+							<div key={weekIndex} className="grid gap-1" style={{ gridTemplateColumns: '40px repeat(7, minmax(0, 1fr))' }}>
 								{/* Week Number Column */}
 								<div
 									className="min-h-[100px] flex items-center justify-center rounded-lg cursor-pointer hover:opacity-80"
@@ -288,7 +288,7 @@ export default function MonatsansichtPage() {
 								{/* Days */}
 								{week.days.map((date, dayIndex) => {
 									if (!date) {
-										return <div key={`empty-${weekIndex}-${dayIndex}`} className="min-h-[100px]" />;
+										return <div key={`empty-${weekIndex}-${dayIndex}`} className="min-h-[100px] rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }} />;
 									}
 
 									const dayExams = getExamsForDate(date);
