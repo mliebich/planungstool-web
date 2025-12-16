@@ -664,7 +664,7 @@ function WochenansichtContent() {
 					<div className="print-only print-day-overview">
 						<div className="print-day-header">
 							<h1>{printDay.name}, {formatDate(printDay.date)}</h1>
-							<p>Kalenderwoche {currentWeek} / {currentYear}</p>
+							<p>KW {currentWeek} / {currentYear}</p>
 						</div>
 
 						<div className="print-day-lessons">
@@ -675,7 +675,7 @@ function WochenansichtContent() {
 								return (
 									<div key={lesson.id} className="print-lesson-card">
 										<div className="print-lesson-time">
-											{lesson.startTime} - {lesson.endTime}
+											{lesson.startTime}
 										</div>
 										<div className="print-lesson-content">
 											<div className="print-lesson-subject">
@@ -685,13 +685,20 @@ function WochenansichtContent() {
 											</div>
 											{theme && (
 												<div className="print-lesson-theme">
-													Thema: {theme.name}
+													{theme.name}
 												</div>
 											)}
 											{material && (
 												<div className="print-lesson-material">
-													<strong>{material.type === 'link' ? '🔗' : material.type === 'pdf' ? '📄' : material.type === 'video' ? '🎬' : material.type === 'exercise' ? '✏️' : '📝'} {material.title}</strong>
+													<strong>{material.title}</strong>
 													{material.description && <p>{material.description}</p>}
+													{material.urls && material.urls.length > 0 && (
+														<>
+															{material.urls.map((url, i) => (
+																<a key={i} href={url}>{url}</a>
+															))}
+														</>
+													)}
 												</div>
 											)}
 										</div>
@@ -701,7 +708,7 @@ function WochenansichtContent() {
 						</div>
 
 						<div className="print-day-footer">
-							Gedruckt am {new Date().toLocaleDateString('de-DE')}
+							{new Date().toLocaleDateString('de-DE')}
 						</div>
 					</div>
 				</>
