@@ -45,6 +45,7 @@ function WochenansichtContent() {
 	const [visibleDays, setVisibleDays] = useState<Array<{ index: number; name: string }>>([]);
 	const [customColors, setCustomColors] = useState<ClassColorConfig>({});
 	const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(null);
+	const [printDay, setPrintDay] = useState<{ index: number; name: string; date: Date } | null>(null);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -160,6 +161,37 @@ function WochenansichtContent() {
 		return theme.materials?.find(m => m.id === lesson.assignedMaterialId);
 	};
 
+	// Alle Lektionen für einen Tag (sortiert nach Zeit)
+	const getLessonsForDay = (dayIndex: number) => {
+		return lessons
+			.filter(l => {
+				if (l.dayOfWeek !== dayIndex) return false;
+				// Theme-Lektionen nur für die aktuelle Woche
+				if (l.themeId && l.plannedWeek !== currentWeek) return false;
+				// Normale Lektionen ohne Thema immer anzeigen, aber nicht wenn es eine Theme-Lektion gibt
+				if (!l.themeId) {
+					const hasThemeLesson = lessons.some(
+						tl => tl.dayOfWeek === dayIndex &&
+						      tl.startTime === l.startTime &&
+						      tl.themeId &&
+						      tl.plannedWeek === currentWeek
+					);
+					if (hasThemeLesson) return false;
+				}
+				return true;
+			})
+			.sort((a, b) => {
+				const aMinutes = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
+				const bMinutes = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
+				return aMinutes - bMinutes;
+			});
+	};
+
+	// Druckt die Tagesübersicht
+	const handlePrintDay = () => {
+		window.print();
+	};
+
 	const weekDays = getWeekDays(currentWeek, currentYear);
 
 	if (isLoading || !isAuthenticated) {
@@ -266,7 +298,19 @@ function WochenansichtContent() {
 												className="p-3 border-b text-center font-semibold"
 												style={{ backgroundColor: 'var(--gray-50)', minWidth: '150px' }}
 											>
-												<div>{day.name}</div>
+												<div className="flex items-center justify-center gap-2">
+													<span>{day.name}</span>
+													{dayDate && (
+														<button
+															onClick={() => setPrintDay({ index: day.index, name: day.name, date: dayDate })}
+															className="text-xs px-1.5 py-0.5 rounded opacity-60 hover:opacity-100 transition-opacity"
+															style={{ backgroundColor: 'var(--gray-200)' }}
+															title="Tag drucken"
+														>
+															🖨️
+														</button>
+													)}
+												</div>
 												{dayDate && (
 													<div className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>
 														{formatDate(dayDate)}
@@ -507,6 +551,160 @@ function WochenansichtContent() {
 						})()}
 					</div>
 				</div>
+			)}
+
+			{/* Print Day Modal */}
+			{printDay && (
+				<>
+					{/* Screen version with close button */}
+					<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 no-print">
+						<div className="bg-white rounded-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+							<div className="flex justify-between items-start mb-4">
+								<div>
+									<h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>
+										{printDay.name}, {formatDate(printDay.date)}
+									</h2>
+									<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+										KW {currentWeek} / {currentYear}
+									</p>
+								</div>
+								<button
+									onClick={() => setPrintDay(null)}
+									className="text-2xl px-2"
+									style={{ color: 'var(--text-secondary)' }}
+								>
+									×
+								</button>
+							</div>
+
+							{/* Lessons List */}
+							<div className="space-y-4">
+								{getLessonsForDay(printDay.index).length === 0 ? (
+									<p className="text-center py-8" style={{ color: 'var(--text-secondary)' }}>
+										Keine Lektionen an diesem Tag
+									</p>
+								) : (
+									getLessonsForDay(printDay.index).map(lesson => {
+										const theme = getThemeForLesson(lesson);
+										const material = getMaterialForLesson(lesson);
+										const bgColor = lesson.class
+											? getClassColor(lesson.class, customColors)
+											: 'var(--primary)';
+
+										return (
+											<div key={lesson.id} className="border rounded-xl overflow-hidden" style={{ borderColor: 'var(--border)' }}>
+												{/* Lesson Header */}
+												<div className="p-3 text-white" style={{ backgroundColor: bgColor }}>
+													<div className="flex justify-between items-center">
+														<span className="font-bold">{lesson.startTime} - {lesson.endTime}</span>
+														<span className="text-sm opacity-90">{lesson.room}</span>
+													</div>
+													<div className="font-semibold text-lg">{lesson.subject}</div>
+													{lesson.class && <div className="text-sm opacity-90">{lesson.class}</div>}
+												</div>
+
+												{/* Theme & Material */}
+												{(theme || material) && (
+													<div className="p-3" style={{ backgroundColor: 'var(--gray-50)' }}>
+														{theme && (
+															<div className="mb-2">
+																<span className="text-xs font-semibold" style={{ color: 'var(--primary)' }}>THEMA:</span>
+																<span className="ml-2" style={{ color: 'var(--text-primary)' }}>{theme.name}</span>
+															</div>
+														)}
+														{material && (
+															<div className="p-2 rounded-lg" style={{ backgroundColor: 'white', border: '1px solid var(--border)' }}>
+																<div className="flex items-center gap-2">
+																	<span>
+																		{material.type === 'link' ? '🔗' :
+																		 material.type === 'pdf' ? '📄' :
+																		 material.type === 'video' ? '🎬' :
+																		 material.type === 'exercise' ? '✏️' : '📝'}
+																	</span>
+																	<span className="font-medium" style={{ color: 'var(--text-primary)' }}>
+																		{material.title}
+																	</span>
+																</div>
+																{material.description && (
+																	<p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
+																		{material.description}
+																	</p>
+																)}
+															</div>
+														)}
+													</div>
+												)}
+											</div>
+										);
+									})
+								)}
+							</div>
+
+							{/* Buttons */}
+							<div className="flex gap-3 mt-6">
+								<button
+									onClick={() => setPrintDay(null)}
+									className="flex-1 py-3 rounded-lg font-semibold"
+									style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+								>
+									Schliessen
+								</button>
+								<button
+									onClick={handlePrintDay}
+									className="flex-1 py-3 rounded-lg font-semibold text-white"
+									style={{ backgroundColor: 'var(--primary)' }}
+								>
+									🖨️ Drucken
+								</button>
+							</div>
+						</div>
+					</div>
+
+					{/* Print-only version */}
+					<div className="print-only print-day-overview">
+						<div className="print-day-header">
+							<h1>{printDay.name}, {formatDate(printDay.date)}</h1>
+							<p>Kalenderwoche {currentWeek} / {currentYear}</p>
+						</div>
+
+						<div className="print-day-lessons">
+							{getLessonsForDay(printDay.index).map(lesson => {
+								const theme = getThemeForLesson(lesson);
+								const material = getMaterialForLesson(lesson);
+
+								return (
+									<div key={lesson.id} className="print-lesson-card">
+										<div className="print-lesson-time">
+											{lesson.startTime} - {lesson.endTime}
+										</div>
+										<div className="print-lesson-content">
+											<div className="print-lesson-subject">
+												{lesson.subject}
+												{lesson.class && <span className="print-lesson-class"> ({lesson.class})</span>}
+												{lesson.room && <span className="print-lesson-room"> • {lesson.room}</span>}
+											</div>
+											{theme && (
+												<div className="print-lesson-theme">
+													Thema: {theme.name}
+												</div>
+											)}
+											{material && (
+												<div className="print-lesson-material">
+													<strong>{material.type === 'link' ? '🔗' : material.type === 'pdf' ? '📄' : material.type === 'video' ? '🎬' : material.type === 'exercise' ? '✏️' : '📝'} {material.title}</strong>
+													{material.description && <p>{material.description}</p>}
+												</div>
+											)}
+										</div>
+									</div>
+								);
+							})}
+						</div>
+
+						<div className="print-day-footer">
+							Gedruckt am {new Date().toLocaleDateString('de-DE')}
+						</div>
+					</div>
+				</>
 			)}
 		</div>
 	);

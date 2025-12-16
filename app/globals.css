@@ -301,4 +301,121 @@ input:focus, button:focus {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+
+  /* Day Overview Print Styles */
+  .print-day-overview {
+    display: block !important;
+    padding: 20px;
+    background: white !important;
+  }
+
+  .print-day-header {
+    text-align: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #333;
+  }
+
+  .print-day-header h1 {
+    font-size: 24pt;
+    font-weight: bold;
+    margin: 0;
+    color: black !important;
+  }
+
+  .print-day-header p {
+    font-size: 12pt;
+    color: #666 !important;
+    margin: 5px 0 0 0;
+  }
+
+  .print-day-lessons {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .print-lesson-card {
+    display: flex;
+    border: 2px solid #333;
+    border-radius: 8px;
+    overflow: hidden;
+    page-break-inside: avoid;
+  }
+
+  .print-lesson-time {
+    width: 100px;
+    min-width: 100px;
+    padding: 12px;
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+    font-size: 11pt;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    border-right: 2px solid #333;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-lesson-content {
+    flex: 1;
+    padding: 12px;
+  }
+
+  .print-lesson-subject {
+    font-size: 14pt;
+    font-weight: bold;
+    margin-bottom: 5px;
+    color: black !important;
+  }
+
+  .print-lesson-class,
+  .print-lesson-room {
+    font-weight: normal;
+    color: #666 !important;
+  }
+
+  .print-lesson-theme {
+    font-size: 10pt;
+    color: #0056b3 !important;
+    margin-top: 8px;
+    padding: 5px 8px;
+    background-color: #e3f2fd !important;
+    border-radius: 4px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-lesson-material {
+    margin-top: 8px;
+    padding: 10px;
+    background-color: #d4edda !important;
+    border: 1px solid #28a745;
+    border-radius: 4px;
+    font-size: 10pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-lesson-material strong {
+    display: block;
+    margin-bottom: 5px;
+    color: black !important;
+  }
+
+  .print-lesson-material p {
+    margin: 0;
+    color: #333 !important;
+  }
+
+  .print-day-footer {
+    margin-top: 30px;
+    text-align: center;
+    font-size: 9pt;
+    color: #999 !important;
+    padding-top: 15px;
+    border-top: 1px solid #ccc;
+  }
 }
