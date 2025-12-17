@@ -21,6 +21,7 @@ export default function PruefungenPage() {
 	const [editingExam, setEditingExam] = useState<Exam | null>(null);
 	const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
 	const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
+	const [studentSort, setStudentSort] = useState<"lastName" | "firstName">("lastName");
 
 	const [formData, setFormData] = useState({
 		title: "",
@@ -436,13 +437,62 @@ export default function PruefungenPage() {
 										</p>
 									)}
 
+									{/* Sort Toggle */}
+									<div className="flex items-center gap-2 mb-3">
+										<span
+											className="text-sm"
+											style={{ color: "var(--text-secondary)" }}
+										>
+											Sortieren:
+										</span>
+										<button
+											onClick={() => setStudentSort("lastName")}
+											className={`px-3 py-1 rounded text-sm ${
+												studentSort === "lastName"
+													? "text-white"
+													: ""
+											}`}
+											style={{
+												backgroundColor:
+													studentSort === "lastName"
+														? "var(--primary)"
+														: "var(--gray-200)",
+											}}
+										>
+											Nachname
+										</button>
+										<button
+											onClick={() => setStudentSort("firstName")}
+											className={`px-3 py-1 rounded text-sm ${
+												studentSort === "firstName"
+													? "text-white"
+													: ""
+											}`}
+											style={{
+												backgroundColor:
+													studentSort === "firstName"
+														? "var(--primary)"
+														: "var(--gray-200)",
+											}}
+										>
+											Vorname
+										</button>
+									</div>
+
 									{/* Student Results */}
 									<div className="space-y-2 max-h-[500px] overflow-y-auto">
 										{(() => {
 											const examClass = getExamClass(selectedExam.classId);
 											if (!examClass) return <p>Klasse nicht gefunden</p>;
 
-											return examClass.students.map((student) => {
+											const sortedStudents = [...examClass.students].sort((a, b) => {
+												if (studentSort === "lastName") {
+													return a.lastName.localeCompare(b.lastName, "de");
+												}
+												return a.firstName.localeCompare(b.firstName, "de");
+											});
+
+											return sortedStudents.map((student) => {
 												const result = getStudentResult(
 													selectedExam.id,
 													student.id,
