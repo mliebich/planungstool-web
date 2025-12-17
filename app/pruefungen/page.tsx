@@ -700,11 +700,12 @@ export default function PruefungenPage() {
 									<input
 										type="number"
 										min="0"
+										step="0.5"
 										value={formData.bonusPoints}
 										onChange={(e) =>
 											setFormData({
 												...formData,
-												bonusPoints: parseInt(e.target.value) || 0,
+												bonusPoints: parseFloat(e.target.value) || 0,
 											})
 										}
 										className="w-full px-4 py-3 rounded-lg border-2"
