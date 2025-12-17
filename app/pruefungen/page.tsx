@@ -627,12 +627,13 @@ export default function PruefungenPage() {
 									</label>
 									<input
 										type="number"
-										min="1"
+										min="0.5"
+										step="0.5"
 										value={formData.maxPoints}
 										onChange={(e) =>
 											setFormData({
 												...formData,
-												maxPoints: parseInt(e.target.value) || 100,
+												maxPoints: parseFloat(e.target.value) || 100,
 											})
 										}
 										className="w-full px-4 py-3 rounded-lg border-2"
