@@ -520,13 +520,12 @@ export default function PruefungenPage() {
 														</div>
 														<div className="flex items-center gap-2">
 															<input
-																type="number"
-																min="0"
-																max={selectedExam.maxPoints}
-																step="any"
+																type="text"
+																inputMode="decimal"
 																value={result?.points ?? ""}
 																onChange={(e) => {
-																	const points = parseFloat(e.target.value);
+																	const val = e.target.value.replace(",", ".");
+																	const points = parseFloat(val);
 																	if (
 																		!isNaN(points) &&
 																		points >= 0 &&
@@ -676,16 +675,18 @@ export default function PruefungenPage() {
 										Max. Punkte
 									</label>
 									<input
-										type="number"
-										min="0.5"
-										step="any"
+										type="text"
+										inputMode="decimal"
 										value={formData.maxPoints}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												maxPoints: parseFloat(e.target.value) || 100,
-											})
-										}
+										onChange={(e) => {
+											const val = e.target.value.replace(",", ".");
+											const num = parseFloat(val);
+											if (!isNaN(num) && num > 0) {
+												setFormData({ ...formData, maxPoints: num });
+											} else if (e.target.value === "") {
+												setFormData({ ...formData, maxPoints: 0 });
+											}
+										}}
 										className="w-full px-4 py-3 rounded-lg border-2"
 										style={{ borderColor: "var(--border)" }}
 									/>
@@ -698,16 +699,18 @@ export default function PruefungenPage() {
 										Bonuspunkte
 									</label>
 									<input
-										type="number"
-										min="0"
-										step="any"
+										type="text"
+										inputMode="decimal"
 										value={formData.bonusPoints}
-										onChange={(e) =>
-											setFormData({
-												...formData,
-												bonusPoints: parseFloat(e.target.value) || 0,
-											})
-										}
+										onChange={(e) => {
+											const val = e.target.value.replace(",", ".");
+											const num = parseFloat(val);
+											if (!isNaN(num) && num >= 0) {
+												setFormData({ ...formData, bonusPoints: num });
+											} else if (e.target.value === "") {
+												setFormData({ ...formData, bonusPoints: 0 });
+											}
+										}}
 										className="w-full px-4 py-3 rounded-lg border-2"
 										style={{ borderColor: "var(--border)" }}
 									/>
