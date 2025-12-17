@@ -523,7 +523,7 @@ export default function PruefungenPage() {
 																type="number"
 																min="0"
 																max={selectedExam.maxPoints}
-																step="0.5"
+																step="any"
 																value={result?.points ?? ""}
 																onChange={(e) => {
 																	const points = parseFloat(e.target.value);
@@ -678,7 +678,7 @@ export default function PruefungenPage() {
 									<input
 										type="number"
 										min="0.5"
-										step="0.5"
+										step="any"
 										value={formData.maxPoints}
 										onChange={(e) =>
 											setFormData({
@@ -700,7 +700,7 @@ export default function PruefungenPage() {
 									<input
 										type="number"
 										min="0"
-										step="0.5"
+										step="any"
 										value={formData.bonusPoints}
 										onChange={(e) =>
 											setFormData({
