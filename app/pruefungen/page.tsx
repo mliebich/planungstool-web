@@ -96,7 +96,7 @@ export default function PruefungenPage() {
 		if (!editingExam) return;
 
 		try {
-			await examService.updateExam(editingExam.id, {
+			const updatedExam = await examService.updateExam(editingExam.id, {
 				title: formData.title,
 				subject: formData.subject || formData.title,
 				classId: formData.classId,
@@ -107,6 +107,10 @@ export default function PruefungenPage() {
 				description: formData.description || undefined,
 			});
 			await loadData();
+			// Update selectedExam mit den neuen Daten
+			if (selectedExam?.id === editingExam.id && updatedExam) {
+				setSelectedExam(updatedExam);
+			}
 			setEditingExam(null);
 			resetForm();
 		} catch (error) {
