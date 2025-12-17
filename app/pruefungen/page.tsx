@@ -22,6 +22,8 @@ export default function PruefungenPage() {
 	const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
 	const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
 	const [studentSort, setStudentSort] = useState<"lastName" | "firstName">("lastName");
+	const [maxPointsInput, setMaxPointsInput] = useState("100");
+	const [bonusPointsInput, setBonusPointsInput] = useState("0");
 
 	const [formData, setFormData] = useState({
 		title: "",
@@ -135,6 +137,8 @@ export default function PruefungenPage() {
 			weight: 1,
 			description: "",
 		});
+		setMaxPointsInput("100");
+		setBonusPointsInput("0");
 	};
 
 	const openEditModal = (exam: Exam) => {
@@ -149,6 +153,8 @@ export default function PruefungenPage() {
 			weight: exam.weight || 1,
 			description: exam.description || "",
 		});
+		setMaxPointsInput(String(exam.maxPoints));
+		setBonusPointsInput(String(exam.bonusPoints || 0));
 	};
 
 	const handleSaveResult = async (studentId: string, points: number) => {
@@ -522,8 +528,9 @@ export default function PruefungenPage() {
 															<input
 																type="text"
 																inputMode="decimal"
-																value={result?.points ?? ""}
-																onChange={(e) => {
+																defaultValue={result?.points ?? ""}
+																key={`${student.id}-${result?.points ?? ""}`}
+																onBlur={(e) => {
 																	const val = e.target.value.replace(",", ".");
 																	const points = parseFloat(val);
 																	if (
@@ -677,14 +684,16 @@ export default function PruefungenPage() {
 									<input
 										type="text"
 										inputMode="decimal"
-										value={formData.maxPoints}
-										onChange={(e) => {
-											const val = e.target.value.replace(",", ".");
+										value={maxPointsInput}
+										onChange={(e) => setMaxPointsInput(e.target.value)}
+										onBlur={() => {
+											const val = maxPointsInput.replace(",", ".");
 											const num = parseFloat(val);
 											if (!isNaN(num) && num > 0) {
 												setFormData({ ...formData, maxPoints: num });
-											} else if (e.target.value === "") {
-												setFormData({ ...formData, maxPoints: 0 });
+												setMaxPointsInput(String(num));
+											} else {
+												setMaxPointsInput(String(formData.maxPoints));
 											}
 										}}
 										className="w-full px-4 py-3 rounded-lg border-2"
@@ -701,14 +710,16 @@ export default function PruefungenPage() {
 									<input
 										type="text"
 										inputMode="decimal"
-										value={formData.bonusPoints}
-										onChange={(e) => {
-											const val = e.target.value.replace(",", ".");
+										value={bonusPointsInput}
+										onChange={(e) => setBonusPointsInput(e.target.value)}
+										onBlur={() => {
+											const val = bonusPointsInput.replace(",", ".");
 											const num = parseFloat(val);
 											if (!isNaN(num) && num >= 0) {
 												setFormData({ ...formData, bonusPoints: num });
-											} else if (e.target.value === "") {
-												setFormData({ ...formData, bonusPoints: 0 });
+												setBonusPointsInput(String(num));
+											} else {
+												setBonusPointsInput(String(formData.bonusPoints));
 											}
 										}}
 										className="w-full px-4 py-3 rounded-lg border-2"
