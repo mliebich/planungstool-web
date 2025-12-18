@@ -523,10 +523,9 @@ export default function PruefungenPage() {
 														className="flex items-center gap-4 p-3 rounded-lg"
 														style={{ backgroundColor: "var(--gray-50)" }}
 													>
-														<div className="flex-1">
-															<span className="font-medium">
-																{student.lastName}, {student.firstName}
-															</span>
+														<div className="flex-1 flex gap-1 font-medium">
+															<span className="w-32 truncate">{student.lastName},</span>
+															<span className="truncate">{student.firstName}</span>
 														</div>
 														<div className="flex items-center gap-2">
 															<input
