@@ -9,6 +9,7 @@ import classService from '@/lib/services/classService';
 import examService from '@/lib/services/examService';
 import coachingService from '@/lib/services/coachingService';
 import { storage } from '@/lib/services/storage';
+import { syncService } from '@/lib/services/syncService';
 import { TileConfig, DayOfWeek } from '@/lib/types/settings';
 import Link from 'next/link';
 
@@ -285,6 +286,17 @@ export default function EinstellungenPage() {
 		await sync();
 	};
 
+	const handleForceUpload = async () => {
+		if (confirm('⚠️ ACHTUNG: Alle Cloud-Daten werden mit deinen lokalen Daten überschrieben!\n\nDaten, die nur in der Cloud existieren, gehen verloren.\n\nFortfahren?')) {
+			const result = await syncService.uploadAll();
+			if (result.success) {
+				alert(`✅ Upload erfolgreich!\n\n${result.uploaded.length} Datensätze hochgeladen.`);
+			} else {
+				alert(`❌ Upload fehlgeschlagen:\n${result.errors.join('\n')}`);
+			}
+		}
+	};
+
 	const formatLastSync = (date: Date | null) => {
 		if (!date) return 'Nie';
 		return date.toLocaleString('de-DE', {
@@ -395,14 +407,25 @@ export default function EinstellungenPage() {
 												{formatLastSync(syncState.lastSyncAt)}
 											</div>
 										</div>
-										<button
-											onClick={handleManualSync}
-											disabled={syncState.isSyncing || !syncState.isOnline}
-											className="px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50"
-											style={{ backgroundColor: 'var(--primary)' }}
-										>
-											{syncState.isSyncing ? '⏳ Sync...' : '🔄 Jetzt sync'}
-										</button>
+										<div className="flex gap-2">
+											<button
+												onClick={handleManualSync}
+												disabled={syncState.isSyncing || !syncState.isOnline}
+												className="px-4 py-2 rounded-lg text-white font-medium disabled:opacity-50"
+												style={{ backgroundColor: 'var(--primary)' }}
+											>
+												{syncState.isSyncing ? '⏳ Sync...' : '🔄 Jetzt sync'}
+											</button>
+											<button
+												onClick={handleForceUpload}
+												disabled={syncState.isSyncing || !syncState.isOnline}
+												className="px-4 py-2 rounded-lg font-medium disabled:opacity-50"
+												style={{ backgroundColor: 'var(--warning)', color: 'white' }}
+												title="Lokale Daten erzwungen in die Cloud hochladen"
+											>
+												⬆️ Upload
+											</button>
+										</div>
 									</div>
 									{syncState.error && (
 										<div className="mt-2 text-sm" style={{ color: 'var(--danger)' }}>
