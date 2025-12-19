@@ -22,6 +22,7 @@ export default function PruefungenPage() {
 	const [selectedExam, setSelectedExam] = useState<Exam | null>(null);
 	const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
 	const [studentSort, setStudentSort] = useState<"lastName" | "firstName">("lastName");
+	const [printExam, setPrintExam] = useState<Exam | null>(null);
 	const [maxPointsInput, setMaxPointsInput] = useState("100");
 	const [bonusPointsInput, setBonusPointsInput] = useState("0");
 
@@ -201,6 +202,59 @@ export default function PruefungenPage() {
 		if (grade >= 4) return "#eab308";
 		if (grade >= 3) return "#f97316";
 		return "#ef4444";
+	};
+
+	// Print exam results
+	useEffect(() => {
+		if (printExam) {
+			const timer = setTimeout(() => {
+				window.print();
+			}, 100);
+
+			const handleAfterPrint = () => {
+				setPrintExam(null);
+			};
+			window.addEventListener('afterprint', handleAfterPrint);
+
+			return () => {
+				clearTimeout(timer);
+				window.removeEventListener('afterprint', handleAfterPrint);
+			};
+		}
+	}, [printExam]);
+
+	const getExamPrintData = (exam: Exam) => {
+		const examClass = getExamClass(exam.classId);
+		if (!examClass) return { students: [], average: 0 };
+
+		const sortedStudents = [...examClass.students].sort((a, b) => {
+			if (studentSort === "lastName") {
+				return a.lastName.localeCompare(b.lastName, "de");
+			}
+			return a.firstName.localeCompare(b.firstName, "de");
+		});
+
+		const studentsWithGrades = sortedStudents.map(student => {
+			const result = getStudentResult(exam.id, student.id);
+			const gradeInfo = result
+				? calculateGrade(
+					Math.min(result.points + (exam.bonusPoints || 0), exam.maxPoints),
+					exam.maxPoints
+				)
+				: null;
+			return {
+				...student,
+				points: result?.points ?? null,
+				grade: gradeInfo?.grade ?? null,
+			};
+		});
+
+		const gradesOnly = studentsWithGrades.filter(s => s.grade !== null).map(s => s.grade!);
+		const average = gradesOnly.length > 0
+			? gradesOnly.reduce((a, b) => a + b, 0) / gradesOnly.length
+			: 0;
+
+		return { students: studentsWithGrades, average };
 	};
 
 	if (isLoading || !isAuthenticated) {
@@ -418,6 +472,14 @@ export default function PruefungenPage() {
 											</p>
 										</div>
 										<div className="flex gap-2">
+											<button
+												onClick={() => setPrintExam(selectedExam)}
+												className="px-3 py-1 rounded text-sm"
+												style={{ backgroundColor: "var(--gray-200)" }}
+												title="Resultate drucken"
+											>
+												🖨️
+											</button>
 											<button
 												onClick={() => openEditModal(selectedExam)}
 												className="px-3 py-1 rounded text-sm"
@@ -800,6 +862,64 @@ export default function PruefungenPage() {
 					</div>
 				</div>
 			)}
+
+			{/* Print-only Exam Results */}
+			{printExam && (() => {
+				const { students, average } = getExamPrintData(printExam);
+				const examClass = getExamClass(printExam.classId);
+				return (
+					<div className="print-only print-exam-results">
+						<div className="print-exam-header">
+							<h1>{printExam.title}</h1>
+							<p>
+								{examClass?.name} • {formatDate(new Date(printExam.date))} • {printExam.maxPoints} Punkte
+								{printExam.bonusPoints ? ` (+${printExam.bonusPoints} Bonus)` : ''}
+							</p>
+						</div>
+
+						<table className="print-exam-table">
+							<thead>
+								<tr>
+									<th style={{ width: '40px' }}>Nr.</th>
+									<th style={{ width: '30%' }}>Nachname</th>
+									<th style={{ width: '30%' }}>Vorname</th>
+									<th style={{ width: '15%', textAlign: 'center' }}>Punkte</th>
+									<th style={{ width: '15%', textAlign: 'center' }}>Note</th>
+								</tr>
+							</thead>
+							<tbody>
+								{students.map((student, index) => (
+									<tr key={student.id}>
+										<td style={{ textAlign: 'center' }}>{index + 1}</td>
+										<td>{student.lastName}</td>
+										<td>{student.firstName}</td>
+										<td style={{ textAlign: 'center' }}>
+											{student.points !== null ? student.points : '-'}
+										</td>
+										<td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+											{student.grade !== null ? student.grade.toFixed(1) : '-'}
+										</td>
+									</tr>
+								))}
+							</tbody>
+							<tfoot>
+								<tr>
+									<td colSpan={4} style={{ textAlign: 'right', fontWeight: 'bold' }}>
+										Notenschnitt:
+									</td>
+									<td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+										{average > 0 ? average.toFixed(2) : '-'}
+									</td>
+								</tr>
+							</tfoot>
+						</table>
+
+						<div className="print-exam-footer">
+							{new Date().toLocaleDateString('de-DE')}
+						</div>
+					</div>
+				);
+			})()}
 		</div>
 	);
 }
