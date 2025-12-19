@@ -9,7 +9,7 @@ import classService from '@/lib/services/classService';
 import examService from '@/lib/services/examService';
 import coachingService from '@/lib/services/coachingService';
 import { storage } from '@/lib/services/storage';
-import { syncService } from '@/lib/services/syncService';
+import { syncService, CloudBackup } from '@/lib/services/syncService';
 import { TileConfig, DayOfWeek } from '@/lib/types/settings';
 import Link from 'next/link';
 
@@ -47,6 +47,11 @@ export default function EinstellungenPage() {
 	const [newTagKey, setNewTagKey] = useState('');
 	const [newTagLabel, setNewTagLabel] = useState('');
 	const [showAddTag, setShowAddTag] = useState(false);
+
+	// Backup State
+	const [backups, setBackups] = useState<CloudBackup[]>([]);
+	const [isLoadingBackups, setIsLoadingBackups] = useState(false);
+	const [isRestoringBackup, setIsRestoringBackup] = useState(false);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -287,15 +292,55 @@ export default function EinstellungenPage() {
 	};
 
 	const handleForceUpload = async () => {
-		if (confirm('⚠️ ACHTUNG: Alle Cloud-Daten werden mit deinen lokalen Daten überschrieben!\n\nDaten, die nur in der Cloud existieren, gehen verloren.\n\nFortfahren?')) {
+		if (confirm('⚠️ ACHTUNG: Alle Cloud-Daten werden mit deinen lokalen Daten überschrieben!\n\nDaten, die nur in der Cloud existieren, gehen verloren.\n\nEin Backup wird automatisch erstellt.\n\nFortfahren?')) {
 			const result = await syncService.uploadAll();
 			if (result.success) {
 				alert(`✅ Upload erfolgreich!\n\n${result.uploaded.length} Datensätze hochgeladen.`);
+				loadBackups(); // Refresh backups list
 			} else {
 				alert(`❌ Upload fehlgeschlagen:\n${result.errors.join('\n')}`);
 			}
 		}
 	};
+
+	const loadBackups = async () => {
+		setIsLoadingBackups(true);
+		try {
+			const backupList = await syncService.getBackups();
+			setBackups(backupList);
+		} catch (error) {
+			console.error('Fehler beim Laden der Backups:', error);
+		} finally {
+			setIsLoadingBackups(false);
+		}
+	};
+
+	const handleRestoreBackup = async (backupId: string, backupDate: string) => {
+		const formattedDate = new Date(backupDate).toLocaleString('de-DE');
+		if (confirm(`⚠️ ACHTUNG: Backup vom ${formattedDate} wiederherstellen?\n\nAlle aktuellen Daten (lokal und Cloud) werden mit dem Backup überschrieben!\n\nFortfahren?`)) {
+			setIsRestoringBackup(true);
+			try {
+				const result = await syncService.restoreBackup(backupId);
+				if (result.success) {
+					alert(`✅ Backup wiederhergestellt!\n\n${result.downloaded.length} Datensätze geladen.\n\nSeite wird neu geladen...`);
+					window.location.reload();
+				} else {
+					alert(`❌ Wiederherstellung fehlgeschlagen:\n${result.errors.join('\n')}`);
+				}
+			} catch (error) {
+				alert('❌ Fehler bei der Wiederherstellung');
+			} finally {
+				setIsRestoringBackup(false);
+			}
+		}
+	};
+
+	// Load backups when cloud is enabled
+	useEffect(() => {
+		if (isCloudEnabled) {
+			loadBackups();
+		}
+	}, [isCloudEnabled]);
 
 	const formatLastSync = (date: Date | null) => {
 		if (!date) return 'Nie';
@@ -432,6 +477,62 @@ export default function EinstellungenPage() {
 											{syncState.error}
 										</div>
 									)}
+								</div>
+
+								{/* Backups Section */}
+								<div className="p-4 rounded-lg" style={{ backgroundColor: 'var(--gray-50)' }}>
+									<div className="flex items-center justify-between mb-3">
+										<div className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+											Cloud-Backups
+										</div>
+										<button
+											onClick={loadBackups}
+											disabled={isLoadingBackups}
+											className="text-xs px-2 py-1 rounded"
+											style={{ backgroundColor: 'var(--gray-200)' }}
+										>
+											{isLoadingBackups ? '...' : '🔄'}
+										</button>
+									</div>
+
+									{backups.length === 0 ? (
+										<p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
+											{isLoadingBackups ? 'Lade Backups...' : 'Keine Backups vorhanden. Backups werden automatisch beim Upload erstellt.'}
+										</p>
+									) : (
+										<div className="space-y-2">
+											{backups.map((backup, index) => {
+												const date = new Date(backup.created_at);
+												return (
+													<div
+														key={backup.id}
+														className="flex items-center justify-between p-2 rounded"
+														style={{ backgroundColor: 'white' }}
+													>
+														<div>
+															<span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+																{index === 0 ? 'Neuestes Backup' : `Backup ${index + 1}`}
+															</span>
+															<span className="text-xs ml-2" style={{ color: 'var(--text-secondary)' }}>
+																{date.toLocaleString('de-DE')}
+															</span>
+														</div>
+														<button
+															onClick={() => handleRestoreBackup(backup.id, backup.created_at)}
+															disabled={isRestoringBackup}
+															className="text-xs px-3 py-1 rounded text-white disabled:opacity-50"
+															style={{ backgroundColor: 'var(--warning)' }}
+														>
+															{isRestoringBackup ? '...' : 'Wiederherstellen'}
+														</button>
+													</div>
+												);
+											})}
+										</div>
+									)}
+									<p className="text-xs mt-3" style={{ color: 'var(--text-secondary)' }}>
+										Max. 3 Backups werden gespeichert. Ältere werden automatisch gelöscht.
+									</p>
 								</div>
 							</div>
 						) : (
