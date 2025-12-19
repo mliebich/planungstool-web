@@ -23,6 +23,7 @@ export default function PruefungenPage() {
 	const [selectedClassFilter, setSelectedClassFilter] = useState<string>("all");
 	const [studentSort, setStudentSort] = useState<"lastName" | "firstName">("lastName");
 	const [printExam, setPrintExam] = useState<Exam | null>(null);
+	const [printClassOverview, setPrintClassOverview] = useState<string | null>(null);
 	const [maxPointsInput, setMaxPointsInput] = useState("100");
 	const [bonusPointsInput, setBonusPointsInput] = useState("0");
 
@@ -257,6 +258,90 @@ export default function PruefungenPage() {
 		return { students: studentsWithGrades, average };
 	};
 
+	// Print class overview
+	useEffect(() => {
+		if (printClassOverview) {
+			const timer = setTimeout(() => {
+				window.print();
+			}, 100);
+
+			const handleAfterPrint = () => {
+				setPrintClassOverview(null);
+			};
+			window.addEventListener('afterprint', handleAfterPrint);
+
+			return () => {
+				clearTimeout(timer);
+				window.removeEventListener('afterprint', handleAfterPrint);
+			};
+		}
+	}, [printClassOverview]);
+
+	const getClassOverviewData = (classId: string) => {
+		const cls = classes.find(c => c.id === classId);
+		if (!cls) return { className: '', students: [], exams: [], examAverages: [] };
+
+		// Get all exams for this class, sorted by date
+		const classExams = exams
+			.filter(e => e.classId === classId)
+			.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+		// Sort students
+		const sortedStudents = [...cls.students].sort((a, b) => {
+			if (studentSort === "lastName") {
+				return a.lastName.localeCompare(b.lastName, "de");
+			}
+			return a.firstName.localeCompare(b.firstName, "de");
+		});
+
+		// Calculate grades for each student for each exam
+		const studentsWithAllGrades = sortedStudents.map(student => {
+			const grades: (number | null)[] = [];
+			let totalWeightedGrade = 0;
+			let totalWeight = 0;
+
+			for (const exam of classExams) {
+				const result = getStudentResult(exam.id, student.id);
+				if (result) {
+					const gradeInfo = calculateGrade(
+						Math.min(result.points + (exam.bonusPoints || 0), exam.maxPoints),
+						exam.maxPoints
+					);
+					grades.push(gradeInfo.grade);
+					totalWeightedGrade += gradeInfo.grade * (exam.weight || 1);
+					totalWeight += exam.weight || 1;
+				} else {
+					grades.push(null);
+				}
+			}
+
+			const average = totalWeight > 0 ? totalWeightedGrade / totalWeight : null;
+
+			return {
+				...student,
+				grades,
+				average,
+			};
+		});
+
+		// Calculate exam averages
+		const examAverages = classExams.map((exam, examIndex) => {
+			const grades = studentsWithAllGrades
+				.map(s => s.grades[examIndex])
+				.filter((g): g is number => g !== null);
+			return grades.length > 0
+				? grades.reduce((a, b) => a + b, 0) / grades.length
+				: null;
+		});
+
+		return {
+			className: cls.name,
+			students: studentsWithAllGrades,
+			exams: classExams,
+			examAverages,
+		};
+	};
+
 	if (isLoading || !isAuthenticated) {
 		return (
 			<div
@@ -271,7 +356,7 @@ export default function PruefungenPage() {
 	return (
 		<div className="min-h-screen" style={{ backgroundColor: "var(--gray-50)" }}>
 			{/* Header */}
-			<header className={`bg-white shadow-sm ${printExam ? 'print-hide' : ''}`}>
+			<header className={`bg-white shadow-sm ${printExam || printClassOverview ? 'print-hide' : ''}`}>
 				<div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
 					<div className="flex items-center gap-4">
 						<Link
@@ -314,12 +399,12 @@ export default function PruefungenPage() {
 			</header>
 
 			{/* Print Header (hidden on screen) */}
-			<div className={`print-header hidden ${printExam ? 'print-hide' : ''}`}>
+			<div className={`print-header hidden ${printExam || printClassOverview ? 'print-hide' : ''}`}>
 				<h1>Prüfungen</h1>
 				<p>Gedruckt am {new Date().toLocaleDateString("de-DE")}</p>
 			</div>
 
-			<main className={`max-w-7xl mx-auto px-4 py-6 ${printExam ? 'print-hide' : ''}`}>
+			<main className={`max-w-7xl mx-auto px-4 py-6 ${printExam || printClassOverview ? 'print-hide' : ''}`}>
 				{/* Filter */}
 				<div className="mb-6 flex gap-4 items-center">
 					<label
@@ -341,6 +426,18 @@ export default function PruefungenPage() {
 							</option>
 						))}
 					</select>
+					{selectedClassFilter !== "all" && (
+						<button
+							onClick={() => setPrintClassOverview(selectedClassFilter)}
+							className="px-4 py-2 rounded-lg"
+							style={{
+								backgroundColor: "var(--primary-light)",
+								color: "var(--primary)",
+							}}
+						>
+							Notenübersicht drucken
+						</button>
+					)}
 				</div>
 
 				{classes.length === 0 ? (
@@ -909,6 +1006,84 @@ export default function PruefungenPage() {
 									</td>
 									<td style={{ textAlign: 'center', fontWeight: 'bold' }}>
 										{average > 0 ? average.toFixed(2) : '-'}
+									</td>
+								</tr>
+							</tfoot>
+						</table>
+
+						<div className="print-exam-footer">
+							{new Date().toLocaleDateString('de-DE')}
+						</div>
+					</div>
+				);
+			})()}
+
+			{/* Print-only Class Grade Overview */}
+			{printClassOverview && (() => {
+				const { className, students, exams, examAverages } = getClassOverviewData(printClassOverview);
+				return (
+					<div className="print-only print-class-overview">
+						<div className="print-exam-header">
+							<h1>Notenübersicht {className}</h1>
+							<p>
+								{exams.length} Prüfung{exams.length !== 1 ? 'en' : ''} • {students.length} Schüler:innen
+							</p>
+						</div>
+
+						<table className="print-overview-table">
+							<thead>
+								<tr>
+									<th style={{ width: '30px' }}>Nr.</th>
+									<th>Nachname</th>
+									<th>Vorname</th>
+									{exams.map((exam, i) => (
+										<th key={exam.id} style={{ textAlign: 'center', fontSize: '8pt' }}>
+											{exam.title.length > 15 ? exam.title.substring(0, 15) + '...' : exam.title}
+											<br />
+											<span style={{ fontWeight: 'normal', fontSize: '7pt' }}>
+												{formatDate(new Date(exam.date))}
+											</span>
+										</th>
+									))}
+									<th style={{ textAlign: 'center', fontWeight: 'bold' }}>Ø</th>
+								</tr>
+							</thead>
+							<tbody>
+								{students.map((student, index) => (
+									<tr key={student.id}>
+										<td style={{ textAlign: 'center' }}>{index + 1}</td>
+										<td>{student.lastName}</td>
+										<td>{student.firstName}</td>
+										{student.grades.map((grade, i) => (
+											<td key={i} style={{ textAlign: 'center' }}>
+												{grade !== null ? grade.toFixed(1) : '-'}
+											</td>
+										))}
+										<td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+											{student.average !== null ? student.average.toFixed(2) : '-'}
+										</td>
+									</tr>
+								))}
+							</tbody>
+							<tfoot>
+								<tr>
+									<td colSpan={3} style={{ textAlign: 'right', fontWeight: 'bold' }}>
+										Klassenschnitt:
+									</td>
+									{examAverages.map((avg, i) => (
+										<td key={i} style={{ textAlign: 'center', fontWeight: 'bold' }}>
+											{avg !== null ? avg.toFixed(2) : '-'}
+										</td>
+									))}
+									<td style={{ textAlign: 'center', fontWeight: 'bold' }}>
+										{(() => {
+											const allAverages = students
+												.map(s => s.average)
+												.filter((a): a is number => a !== null);
+											return allAverages.length > 0
+												? (allAverages.reduce((a, b) => a + b, 0) / allAverages.length).toFixed(2)
+												: '-';
+										})()}
 									</td>
 								</tr>
 							</tfoot>

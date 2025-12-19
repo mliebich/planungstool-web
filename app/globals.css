@@ -500,4 +500,55 @@ input[type="number"] {
     font-size: 8pt;
     color: #666 !important;
   }
+
+  /* Class Grade Overview Print Styles */
+  .print-class-overview {
+    display: block !important;
+    padding: 15px;
+    background: white !important;
+  }
+
+  .print-overview-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    font-size: 9pt;
+  }
+
+  .print-overview-table th,
+  .print-overview-table td {
+    border: 1px solid #333 !important;
+    padding: 4px 6px !important;
+  }
+
+  .print-overview-table th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold;
+    text-align: left;
+    vertical-align: bottom;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-overview-table tbody tr:nth-child(even) {
+    background-color: #f9f9f9 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-overview-table tfoot td {
+    border-top: 2px solid #000 !important;
+    background-color: #e8e8e8 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Landscape orientation for overview with many exams */
+  .print-class-overview {
+    page: landscape;
+  }
+
+  @page landscape {
+    size: A4 landscape;
+  }
 }
