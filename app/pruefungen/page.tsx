@@ -386,11 +386,13 @@ export default function PruefungenPage() {
 				</div>
 			</header>
 
-			{/* Print Header (hidden on screen) */}
-			<div className={`print-header hidden ${printExam || printClassOverview ? 'print-hide' : ''}`}>
-				<h1>Prüfungen</h1>
-				<p>Gedruckt am {new Date().toLocaleDateString("de-DE")}</p>
-			</div>
+			{/* Print Header (hidden on screen) - only for general print, not for specific prints */}
+			{!printExam && !printClassOverview && (
+				<div className="print-header hidden">
+					<h1>Prüfungen</h1>
+					<p>Gedruckt am {new Date().toLocaleDateString("de-DE")}</p>
+				</div>
+			)}
 
 			<main className={`max-w-7xl mx-auto px-4 py-6 ${printExam || printClassOverview ? 'print-hide' : ''}`}>
 				{/* Filter */}
