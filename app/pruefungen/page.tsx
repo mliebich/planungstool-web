@@ -373,28 +373,16 @@ export default function PruefungenPage() {
 							Prüfungen
 						</h1>
 					</div>
-					<div className="flex items-center gap-2">
-						<button
-							onClick={() => window.print()}
-							className="px-4 py-2 rounded-lg"
-							style={{
-								backgroundColor: "var(--gray-200)",
-								color: "var(--text-primary)",
-							}}
-						>
-							🖨️ Drucken
-						</button>
-						<button
-							onClick={() => {
-								resetForm();
-								setShowAddModal(true);
-							}}
-							className="px-4 py-2 rounded-lg text-white"
-							style={{ backgroundColor: "var(--secondary)" }}
-						>
-							+ Neue Prüfung
-						</button>
-					</div>
+					<button
+						onClick={() => {
+							resetForm();
+							setShowAddModal(true);
+						}}
+						className="px-4 py-2 rounded-lg text-white"
+						style={{ backgroundColor: "var(--secondary)" }}
+					>
+						+ Neue Prüfung
+					</button>
 				</div>
 			</header>
 
@@ -431,11 +419,11 @@ export default function PruefungenPage() {
 							onClick={() => setPrintClassOverview(selectedClassFilter)}
 							className="px-4 py-2 rounded-lg"
 							style={{
-								backgroundColor: "var(--primary-light)",
-								color: "var(--primary)",
+								backgroundColor: "var(--gray-200)",
+								color: "var(--text-primary)",
 							}}
 						>
-							Notenübersicht drucken
+							🖨️ Notenübersicht
 						</button>
 					)}
 				</div>
