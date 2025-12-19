@@ -271,7 +271,7 @@ export default function PruefungenPage() {
 	return (
 		<div className="min-h-screen" style={{ backgroundColor: "var(--gray-50)" }}>
 			{/* Header */}
-			<header className="bg-white shadow-sm">
+			<header className={`bg-white shadow-sm ${printExam ? 'print-hide' : ''}`}>
 				<div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
 					<div className="flex items-center gap-4">
 						<Link
@@ -314,12 +314,12 @@ export default function PruefungenPage() {
 			</header>
 
 			{/* Print Header (hidden on screen) */}
-			<div className="print-header hidden">
+			<div className={`print-header hidden ${printExam ? 'print-hide' : ''}`}>
 				<h1>Prüfungen</h1>
 				<p>Gedruckt am {new Date().toLocaleDateString("de-DE")}</p>
 			</div>
 
-			<main className="max-w-7xl mx-auto px-4 py-6">
+			<main className={`max-w-7xl mx-auto px-4 py-6 ${printExam ? 'print-hide' : ''}`}>
 				{/* Filter */}
 				<div className="mb-6 flex gap-4 items-center">
 					<label
@@ -647,7 +647,7 @@ export default function PruefungenPage() {
 
 			{/* Add/Edit Modal */}
 			{(showAddModal || editingExam) && (
-				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 print-hide">
 					<div className="bg-white rounded-2xl p-6 w-full max-w-md">
 						<h2
 							className="text-xl font-bold mb-4"
