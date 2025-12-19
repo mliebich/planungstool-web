@@ -192,6 +192,26 @@ export default function PruefungenPage() {
 		return classes.find((c) => c.id === classId);
 	};
 
+	const getStudentOverallAverage = (studentId: string, classId: string): number | null => {
+		const classExams = exams.filter(e => e.classId === classId);
+		let totalWeightedGrade = 0;
+		let totalWeight = 0;
+
+		for (const exam of classExams) {
+			const result = getStudentResult(exam.id, studentId);
+			if (result) {
+				const gradeInfo = calculateGrade(
+					Math.min(result.points + (exam.bonusPoints || 0), exam.maxPoints),
+					exam.maxPoints
+				);
+				totalWeightedGrade += gradeInfo.grade * (exam.weight || 1);
+				totalWeight += exam.weight || 1;
+			}
+		}
+
+		return totalWeight > 0 ? totalWeightedGrade / totalWeight : null;
+	};
+
 	const filteredExams =
 		selectedClassFilter === "all"
 			? exams
@@ -713,6 +733,21 @@ export default function PruefungenPage() {
 																	{gradeInfo.grade.toFixed(1)}
 																</span>
 															)}
+															{(() => {
+																const avg = getStudentOverallAverage(student.id, selectedExam.classId);
+																return avg !== null ? (
+																	<span
+																		className="text-sm w-14 text-center"
+																		style={{
+																			color: getGradeColor(avg),
+																			opacity: 0.7,
+																		}}
+																		title="Gesamtdurchschnitt"
+																	>
+																		(Ø {avg.toFixed(1)})
+																	</span>
+																) : null;
+															})()}
 														</div>
 													</div>
 												);
