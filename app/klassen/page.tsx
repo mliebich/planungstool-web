@@ -25,6 +25,7 @@ export default function KlassenPage() {
 	const [uploadingPhotoFor, setUploadingPhotoFor] = useState<string | null>(null);
 	const [showPhotoMenu, setShowPhotoMenu] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
+	const photoImportRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -269,6 +270,46 @@ export default function KlassenPage() {
 		setShowPhotoMenu(showPhotoMenu === studentId ? null : studentId);
 	};
 
+	const handleExportPhotos = async () => {
+		try {
+			const jsonData = await photoService.exportAllPhotos();
+			const blob = new Blob([jsonData], { type: 'application/json' });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement('a');
+			a.href = url;
+			a.download = `schueler-fotos-${new Date().toISOString().split('T')[0]}.json`;
+			document.body.appendChild(a);
+			a.click();
+			document.body.removeChild(a);
+			URL.revokeObjectURL(url);
+		} catch (error) {
+			console.error('Export-Fehler:', error);
+			alert('Fehler beim Exportieren der Fotos');
+		}
+	};
+
+	const handleImportPhotos = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file) return;
+
+		try {
+			const text = await file.text();
+			const count = await photoService.importPhotos(text);
+			alert(`${count} Foto(s) importiert!`);
+			// Reload photos for current class
+			if (selectedClass) {
+				await loadPhotosForClass(selectedClass);
+			}
+		} catch (error) {
+			console.error('Import-Fehler:', error);
+			alert('Fehler beim Importieren der Fotos. Ungültiges Dateiformat.');
+		} finally {
+			if (photoImportRef.current) {
+				photoImportRef.current.value = '';
+			}
+		}
+	};
+
 	const handleImport = async () => {
 		if (!selectedClass || !importText.trim()) {
 			alert('Bitte Daten einfügen');
@@ -320,6 +361,30 @@ export default function KlassenPage() {
 						</h1>
 					</div>
 					<div className="flex items-center gap-2">
+						{/* Hidden file input for photo import */}
+						<input
+							type="file"
+							ref={photoImportRef}
+							onChange={handleImportPhotos}
+							accept=".json"
+							className="hidden"
+						/>
+						<button
+							onClick={handleExportPhotos}
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+							title="Fotos exportieren"
+						>
+							📤 Fotos
+						</button>
+						<button
+							onClick={() => photoImportRef.current?.click()}
+							className="px-4 py-2 rounded-lg"
+							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
+							title="Fotos importieren"
+						>
+							📥 Fotos
+						</button>
 						<button
 							onClick={() => window.print()}
 							className="px-4 py-2 rounded-lg"

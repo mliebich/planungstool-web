@@ -108,6 +108,47 @@ class PhotoService {
 		});
 	}
 
+	async exportAllPhotos(): Promise<string> {
+		const db = await this.getDB();
+
+		return new Promise((resolve, reject) => {
+			const transaction = db.transaction([STORE_NAME], 'readonly');
+			const store = transaction.objectStore(STORE_NAME);
+			const request = store.getAll();
+
+			request.onsuccess = () => {
+				const photos = request.result as StoredPhoto[];
+				resolve(JSON.stringify(photos, null, 2));
+			};
+			request.onerror = () => reject(request.error);
+		});
+	}
+
+	async importPhotos(jsonData: string): Promise<number> {
+		const photos: StoredPhoto[] = JSON.parse(jsonData);
+		const db = await this.getDB();
+		let imported = 0;
+
+		for (const photo of photos) {
+			await new Promise<void>((resolve, reject) => {
+				const transaction = db.transaction([STORE_NAME], 'readwrite');
+				const store = transaction.objectStore(STORE_NAME);
+				const request = store.put({
+					...photo,
+					createdAt: new Date(photo.createdAt),
+				});
+
+				request.onsuccess = () => {
+					imported++;
+					resolve();
+				};
+				request.onerror = () => reject(request.error);
+			});
+		}
+
+		return imported;
+	}
+
 	private async compressImage(file: File): Promise<string> {
 		// Validate file type
 		const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
