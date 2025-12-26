@@ -23,6 +23,7 @@ export default function KlassenPage() {
 	const [studentForm, setStudentForm] = useState({ firstName: '', lastName: '', email: '', gender: '' as 'm' | 'f' | 'd' | '' });
 	const [studentPhotos, setStudentPhotos] = useState<Record<string, string>>({});
 	const [uploadingPhotoFor, setUploadingPhotoFor] = useState<string | null>(null);
+	const [showPhotoMenu, setShowPhotoMenu] = useState<string | null>(null);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
@@ -42,6 +43,15 @@ export default function KlassenPage() {
 			loadPhotosForClass(selectedClass);
 		}
 	}, [selectedClass?.id]);
+
+	// Close photo menu when clicking outside
+	useEffect(() => {
+		const handleClickOutside = () => setShowPhotoMenu(null);
+		if (showPhotoMenu) {
+			document.addEventListener('click', handleClickOutside);
+			return () => document.removeEventListener('click', handleClickOutside);
+		}
+	}, [showPhotoMenu]);
 
 	const loadPhotosForClass = async (cls: Class) => {
 		const photos: Record<string, string> = {};
@@ -200,8 +210,63 @@ export default function KlassenPage() {
 	};
 
 	const triggerPhotoUpload = (studentId: string) => {
+		setShowPhotoMenu(null);
 		setUploadingPhotoFor(studentId);
 		fileInputRef.current?.click();
+	};
+
+	const handlePastePhoto = async (studentId: string) => {
+		setShowPhotoMenu(null);
+		if (!selectedClass) return;
+
+		try {
+			const clipboardItems = await navigator.clipboard.read();
+			let imageBlob: Blob | null = null;
+
+			for (const item of clipboardItems) {
+				// Check for supported image types
+				const imageType = item.types.find(type =>
+					['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(type)
+				);
+				if (imageType) {
+					imageBlob = await item.getType(imageType);
+					break;
+				}
+			}
+
+			if (!imageBlob) {
+				alert('Kein Bild in der Zwischenablage gefunden');
+				return;
+			}
+
+			// Convert Blob to File
+			const file = new File([imageBlob], 'pasted-image.png', { type: imageBlob.type });
+
+			const photoId = `photo-${studentId}`;
+			await photoService.savePhoto(photoId, file);
+
+			// Update student with photoId
+			const updated = await classService.updateStudent(selectedClass.id, studentId, { photoId });
+			setSelectedClass(updated);
+			setClasses(classes.map(c => c.id === updated.id ? updated : c));
+
+			// Load the photo into state
+			const photo = await photoService.getPhoto(photoId);
+			if (photo) {
+				setStudentPhotos(prev => ({ ...prev, [studentId]: photo }));
+			}
+		} catch (error) {
+			console.error('Fehler beim Einfügen:', error);
+			if (error instanceof Error && error.message.includes('permission')) {
+				alert('Bitte erlaube den Zugriff auf die Zwischenablage');
+			} else {
+				alert('Fehler beim Einfügen des Fotos');
+			}
+		}
+	};
+
+	const togglePhotoMenu = (studentId: string) => {
+		setShowPhotoMenu(showPhotoMenu === studentId ? null : studentId);
 	};
 
 	const handleImport = async () => {
@@ -387,7 +452,7 @@ export default function KlassenPage() {
 																			src={studentPhotos[student.id]}
 																			alt={`${student.firstName} ${student.lastName}`}
 																			className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
-																			onClick={() => triggerPhotoUpload(student.id)}
+																			onClick={(e) => { e.stopPropagation(); togglePhotoMenu(student.id); }}
 																			title="Foto ändern"
 																		/>
 																		<button
@@ -400,13 +465,43 @@ export default function KlassenPage() {
 																	</>
 																) : (
 																	<button
-																		onClick={() => triggerPhotoUpload(student.id)}
+																		onClick={(e) => { e.stopPropagation(); togglePhotoMenu(student.id); }}
 																		className="w-10 h-10 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity"
 																		style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-tertiary)' }}
 																		title="Foto hinzufügen"
 																	>
 																		📷
 																	</button>
+																)}
+																{/* Photo menu dropdown */}
+																{showPhotoMenu === student.id && (
+																	<div
+																		className="absolute left-0 top-12 z-10 bg-white rounded-lg shadow-lg border py-1 min-w-[140px]"
+																		style={{ borderColor: 'var(--border)' }}
+																		onClick={(e) => e.stopPropagation()}
+																	>
+																		<button
+																			onClick={() => triggerPhotoUpload(student.id)}
+																			className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+																		>
+																			📁 Datei wählen
+																		</button>
+																		<button
+																			onClick={() => handlePastePhoto(student.id)}
+																			className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+																		>
+																			📋 Einfügen
+																		</button>
+																		{studentPhotos[student.id] && (
+																			<button
+																				onClick={() => { setShowPhotoMenu(null); handleDeletePhoto(student.id); }}
+																				className="w-full text-left px-3 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+																				style={{ color: 'var(--danger)' }}
+																			>
+																				🗑️ Entfernen
+																			</button>
+																		)}
+																	</div>
 																)}
 															</div>
 														</td>
