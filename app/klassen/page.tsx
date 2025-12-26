@@ -361,30 +361,6 @@ export default function KlassenPage() {
 						</h1>
 					</div>
 					<div className="flex items-center gap-2">
-						{/* Hidden file input for photo import */}
-						<input
-							type="file"
-							ref={photoImportRef}
-							onChange={handleImportPhotos}
-							accept=".json"
-							className="hidden"
-						/>
-						<button
-							onClick={handleExportPhotos}
-							className="px-4 py-2 rounded-lg"
-							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
-							title="Fotos exportieren"
-						>
-							📤 Fotos
-						</button>
-						<button
-							onClick={() => photoImportRef.current?.click()}
-							className="px-4 py-2 rounded-lg"
-							style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
-							title="Fotos importieren"
-						>
-							📥 Fotos
-						</button>
 						<button
 							onClick={() => window.print()}
 							className="px-4 py-2 rounded-lg"
@@ -454,12 +430,37 @@ export default function KlassenPage() {
 										</p>
 									</div>
 									<div className="flex gap-2">
+										{/* Hidden file input for photo import */}
+										<input
+											type="file"
+											ref={photoImportRef}
+											onChange={handleImportPhotos}
+											accept=".json"
+											className="hidden"
+										/>
 										<button
 											onClick={() => setShowImportModal(true)}
 											className="px-3 py-2 rounded-lg text-sm"
 											style={{ backgroundColor: 'var(--gray-100)', color: 'var(--text-primary)' }}
+											title="Schüler:innen aus Excel importieren"
 										>
-											📋 Import
+											↓ Namen
+										</button>
+										<button
+											onClick={() => photoImportRef.current?.click()}
+											className="px-3 py-2 rounded-lg text-sm"
+											style={{ backgroundColor: 'var(--gray-100)', color: 'var(--text-primary)' }}
+											title="Fotos aus Datei importieren"
+										>
+											↓ Fotos
+										</button>
+										<button
+											onClick={handleExportPhotos}
+											className="px-3 py-2 rounded-lg text-sm"
+											style={{ backgroundColor: 'var(--gray-100)', color: 'var(--text-primary)' }}
+											title="Fotos in Datei exportieren"
+										>
+											↑ Fotos
 										</button>
 										<button
 											onClick={() => setShowAddStudentModal(true)}
