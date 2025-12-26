@@ -137,18 +137,35 @@ function WochenansichtContent() {
 		// Sammle alle relevanten Lektionen
 		const result: Lesson[] = [];
 
-		// Theme-Lektionen mit passender plannedWeek
-		const themeLessonsForWeek = slotLessons.filter(l =>
-			l.themeId && l.plannedWeek === currentWeek
+		// Theme-Lektionen mit passender plannedWeek und assignmentId (neue Struktur)
+		const themeLessonsWithAssignment = slotLessons.filter(l =>
+			l.themeId && l.assignmentId && l.plannedWeek === currentWeek
 		);
 
-		// Füge alle Theme-Lektionen hinzu
-		result.push(...themeLessonsForWeek);
+		// Alte Theme-Lektionen ohne assignmentId (Legacy)
+		const legacyThemeLessons = slotLessons.filter(l =>
+			l.themeId && !l.assignmentId && l.plannedWeek === currentWeek
+		);
+
+		// Füge neue Theme-Lektionen hinzu
+		result.push(...themeLessonsWithAssignment);
+
+		// Legacy-Lektionen nur hinzufügen wenn keine neue Lektion für diese Klasse existiert
+		for (const legacyLesson of legacyThemeLessons) {
+			const hasNewLessonForClass = themeLessonsWithAssignment.some(
+				tl => tl.class === legacyLesson.class
+			);
+			if (!hasNewLessonForClass) {
+				result.push(legacyLesson);
+			}
+		}
 
 		// Für normale Lektionen (ohne Thema): nur hinzufügen wenn keine Theme-Lektion für diese Klasse existiert
 		const normalLessons = slotLessons.filter(l => !l.themeId);
+		const allThemeLessons = [...themeLessonsWithAssignment, ...result.filter(l => l.themeId && !l.assignmentId)];
+
 		for (const normalLesson of normalLessons) {
-			const hasThemeLessonForClass = themeLessonsForWeek.some(
+			const hasThemeLessonForClass = allThemeLessons.some(
 				tl => tl.class === normalLesson.class
 			);
 			if (!hasThemeLessonForClass) {
@@ -173,28 +190,49 @@ function WochenansichtContent() {
 
 	// Alle Lektionen für einen Tag (sortiert nach Zeit)
 	const getLessonsForDay = (dayIndex: number) => {
-		return lessons
-			.filter(l => {
-				if (l.dayOfWeek !== dayIndex) return false;
-				// Theme-Lektionen nur für die aktuelle Woche
-				if (l.themeId && l.plannedWeek !== currentWeek) return false;
-				// Normale Lektionen ohne Thema immer anzeigen, aber nicht wenn es eine Theme-Lektion gibt
-				if (!l.themeId) {
-					const hasThemeLesson = lessons.some(
-						tl => tl.dayOfWeek === dayIndex &&
-						      tl.startTime === l.startTime &&
-						      tl.themeId &&
-						      tl.plannedWeek === currentWeek
-					);
-					if (hasThemeLesson) return false;
-				}
-				return true;
-			})
-			.sort((a, b) => {
-				const aMinutes = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
-				const bMinutes = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
-				return aMinutes - bMinutes;
-			});
+		// Sammle alle Lektionen für diesen Tag
+		const dayLessons = lessons.filter(l => l.dayOfWeek === dayIndex);
+
+		// Theme-Lektionen mit assignmentId (neue Struktur)
+		const newThemeLessons = dayLessons.filter(l =>
+			l.themeId && l.assignmentId && l.plannedWeek === currentWeek
+		);
+
+		// Legacy Theme-Lektionen
+		const legacyThemeLessons = dayLessons.filter(l =>
+			l.themeId && !l.assignmentId && l.plannedWeek === currentWeek
+		);
+
+		// Normale Lektionen
+		const normalLessons = dayLessons.filter(l => !l.themeId);
+
+		const result: Lesson[] = [...newThemeLessons];
+
+		// Legacy nur wenn keine neue Lektion für gleiche Klasse/Zeit
+		for (const legacy of legacyThemeLessons) {
+			const hasNew = newThemeLessons.some(
+				nl => nl.class === legacy.class && nl.startTime === legacy.startTime
+			);
+			if (!hasNew) {
+				result.push(legacy);
+			}
+		}
+
+		// Normale nur wenn keine Theme-Lektion für gleiche Klasse/Zeit
+		for (const normal of normalLessons) {
+			const hasTheme = result.some(
+				tl => tl.class === normal.class && tl.startTime === normal.startTime
+			);
+			if (!hasTheme) {
+				result.push(normal);
+			}
+		}
+
+		return result.sort((a, b) => {
+			const aMinutes = parseInt(a.startTime.split(':')[0]) * 60 + parseInt(a.startTime.split(':')[1]);
+			const bMinutes = parseInt(b.startTime.split(':')[0]) * 60 + parseInt(b.startTime.split(':')[1]);
+			return aMinutes - bMinutes;
+		});
 	};
 
 	// Druckt die Tagesübersicht direkt
