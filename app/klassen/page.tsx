@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/contexts/AuthContext';
 import classService from '@/lib/services/classService';
+import photoService from '@/lib/services/photoService';
 import { Class, Student } from '@/lib/types';
 import { parseStudentsFromClipboard, getExampleTemplate } from '@/lib/utils/excelParser';
 import Link from 'next/link';
@@ -20,6 +21,9 @@ export default function KlassenPage() {
 	const [importText, setImportText] = useState('');
 	const [classForm, setClassForm] = useState({ name: '', grade: '', schoolYear: '', description: '' });
 	const [studentForm, setStudentForm] = useState({ firstName: '', lastName: '', email: '', gender: '' as 'm' | 'f' | 'd' | '' });
+	const [studentPhotos, setStudentPhotos] = useState<Record<string, string>>({});
+	const [uploadingPhotoFor, setUploadingPhotoFor] = useState<string | null>(null);
+	const fileInputRef = useRef<HTMLInputElement>(null);
 
 	useEffect(() => {
 		if (!isLoading && !isAuthenticated) {
@@ -32,6 +36,25 @@ export default function KlassenPage() {
 			loadClasses();
 		}
 	}, [isAuthenticated]);
+
+	useEffect(() => {
+		if (selectedClass) {
+			loadPhotosForClass(selectedClass);
+		}
+	}, [selectedClass?.id]);
+
+	const loadPhotosForClass = async (cls: Class) => {
+		const photos: Record<string, string> = {};
+		for (const student of cls.students) {
+			if (student.photoId) {
+				const photo = await photoService.getPhoto(student.photoId);
+				if (photo) {
+					photos[student.id] = photo;
+				}
+			}
+		}
+		setStudentPhotos(photos);
+	};
 
 	const loadClasses = async () => {
 		try {
@@ -107,12 +130,78 @@ export default function KlassenPage() {
 		if (!selectedClass || !confirm('Schüler:in wirklich entfernen?')) return;
 
 		try {
+			// Delete photo if exists
+			const student = selectedClass.students.find(s => s.id === studentId);
+			if (student?.photoId) {
+				await photoService.deletePhoto(student.photoId);
+			}
 			const updated = await classService.removeStudent(selectedClass.id, studentId);
 			setSelectedClass(updated);
 			setClasses(classes.map(c => c.id === updated.id ? updated : c));
+			// Remove from local state
+			setStudentPhotos(prev => {
+				const newPhotos = { ...prev };
+				delete newPhotos[studentId];
+				return newPhotos;
+			});
 		} catch (error) {
 			console.error('Fehler:', error);
 		}
+	};
+
+	const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.target.files?.[0];
+		if (!file || !uploadingPhotoFor || !selectedClass) return;
+
+		try {
+			const photoId = `photo-${uploadingPhotoFor}`;
+			await photoService.savePhoto(photoId, file);
+
+			// Update student with photoId
+			const updated = await classService.updateStudent(selectedClass.id, uploadingPhotoFor, { photoId });
+			setSelectedClass(updated);
+			setClasses(classes.map(c => c.id === updated.id ? updated : c));
+
+			// Load the photo into state
+			const photo = await photoService.getPhoto(photoId);
+			if (photo) {
+				setStudentPhotos(prev => ({ ...prev, [uploadingPhotoFor]: photo }));
+			}
+		} catch (error) {
+			console.error('Fehler beim Hochladen:', error);
+			alert('Fehler beim Hochladen des Fotos');
+		} finally {
+			setUploadingPhotoFor(null);
+			if (fileInputRef.current) {
+				fileInputRef.current.value = '';
+			}
+		}
+	};
+
+	const handleDeletePhoto = async (studentId: string) => {
+		if (!selectedClass) return;
+
+		const student = selectedClass.students.find(s => s.id === studentId);
+		if (!student?.photoId) return;
+
+		try {
+			await photoService.deletePhoto(student.photoId);
+			const updated = await classService.updateStudent(selectedClass.id, studentId, { photoId: undefined });
+			setSelectedClass(updated);
+			setClasses(classes.map(c => c.id === updated.id ? updated : c));
+			setStudentPhotos(prev => {
+				const newPhotos = { ...prev };
+				delete newPhotos[studentId];
+				return newPhotos;
+			});
+		} catch (error) {
+			console.error('Fehler:', error);
+		}
+	};
+
+	const triggerPhotoUpload = (studentId: string) => {
+		setUploadingPhotoFor(studentId);
+		fileInputRef.current?.click();
 	};
 
 	const handleImport = async () => {
@@ -259,11 +348,21 @@ export default function KlassenPage() {
 									</div>
 								</div>
 
+								{/* Hidden file input for photo upload */}
+								<input
+									type="file"
+									ref={fileInputRef}
+									onChange={handlePhotoUpload}
+									accept="image/jpeg,image/png,image/gif,image/webp"
+									className="hidden"
+								/>
+
 								{/* Students Table */}
 								<div className="overflow-x-auto">
 									<table className="w-full">
 										<thead>
 											<tr style={{ backgroundColor: 'var(--gray-50)' }}>
+												<th className="text-left p-3 font-semibold w-16">Foto</th>
 												<th className="text-left p-3 font-semibold">Name</th>
 												<th className="text-left p-3 font-semibold">Email</th>
 												<th className="text-left p-3 font-semibold">Geschlecht</th>
@@ -273,13 +372,44 @@ export default function KlassenPage() {
 										<tbody>
 											{selectedClass.students.length === 0 ? (
 												<tr>
-													<td colSpan={4} className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
+													<td colSpan={5} className="text-center py-8" style={{ color: 'var(--text-tertiary)' }}>
 														Noch keine Schüler:innen
 													</td>
 												</tr>
 											) : (
 												selectedClass.students.map(student => (
 													<tr key={student.id} className="border-b" style={{ borderColor: 'var(--border)' }}>
+														<td className="p-3">
+															<div className="relative w-10 h-10 group">
+																{studentPhotos[student.id] ? (
+																	<>
+																		<img
+																			src={studentPhotos[student.id]}
+																			alt={`${student.firstName} ${student.lastName}`}
+																			className="w-10 h-10 rounded-full object-cover cursor-pointer hover:opacity-80 transition-opacity"
+																			onClick={() => triggerPhotoUpload(student.id)}
+																			title="Foto ändern"
+																		/>
+																		<button
+																			onClick={(e) => { e.stopPropagation(); handleDeletePhoto(student.id); }}
+																			className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+																			title="Foto entfernen"
+																		>
+																			×
+																		</button>
+																	</>
+																) : (
+																	<button
+																		onClick={() => triggerPhotoUpload(student.id)}
+																		className="w-10 h-10 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity"
+																		style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-tertiary)' }}
+																		title="Foto hinzufügen"
+																	>
+																		📷
+																	</button>
+																)}
+															</div>
+														</td>
 														<td className="p-3">
 															<span className="font-medium">{student.lastName}</span>, {student.firstName}
 														</td>

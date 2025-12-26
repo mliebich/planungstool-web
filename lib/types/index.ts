@@ -97,6 +97,7 @@ export interface Student {
 	birthDate?: string;
 	gender?: "m" | "f" | "d"; // männlich, weiblich, divers
 	notes?: string;
+	photoId?: string; // ID für lokales Foto in IndexedDB
 	createdAt: Date;
 	updatedAt: Date;
 }
