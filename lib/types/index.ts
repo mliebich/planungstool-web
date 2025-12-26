@@ -48,41 +48,11 @@ export interface Material {
 	plannedLessons?: number; // Anzahl der Lektionen, für die das Material gedacht ist
 }
 
-export interface MaterialUsage {
-	id: string;
-	materialId: string;
-	lessonId: string;
-	themeId: string;
-	weekNumber: number;
-	year: number;
-	used: boolean;
-	comment?: string;
-	usedAt?: Date;
-}
-
 export interface WeekPlan {
 	weekNumber: number;
 	year: number;
 	lessons: Lesson[];
 	notes?: string;
-}
-
-export interface CalendarEvent {
-	id: string;
-	title: string;
-	start: Date;
-	end: Date;
-	description?: string;
-	location?: string;
-	isImported?: boolean; // Markiert importierte ICS-Ereignisse
-}
-
-export interface Schedule {
-	id: string;
-	name: string;
-	lessons: Lesson[];
-	startDate: Date;
-	endDate: Date;
 }
 
 // Blockierung/Sperrung von Lektionen
@@ -215,13 +185,3 @@ export interface CoachingSession {
 	updatedAt: Date;
 }
 
-export interface AppState {
-	schedules: Schedule[];
-	themes: Theme[];
-	classes: Class[]; // Neue Klassen
-	currentWeek: number;
-	currentYear: number;
-	importedEvents: CalendarEvent[];
-	blockages: Blockage[]; // Sperrtermine
-	materialUsages: MaterialUsage[]; // Materialverwendung
-}

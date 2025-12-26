@@ -181,6 +181,13 @@ function WochenansichtContent() {
 		return themes.find(t => t.id === lesson.themeId);
 	};
 
+	const getAssignmentForLesson = (lesson: Lesson) => {
+		if (!lesson.assignmentId) return null;
+		const theme = getThemeForLesson(lesson);
+		if (!theme) return null;
+		return theme.assignments?.find(a => a.id === lesson.assignmentId);
+	};
+
 	const getMaterialForLesson = (lesson: Lesson) => {
 		if (!lesson.assignedMaterialId) return null;
 		const theme = getThemeForLesson(lesson);
@@ -511,6 +518,7 @@ function WochenansichtContent() {
 					>
 						{(() => {
 							const theme = getThemeForLesson(selectedLesson);
+							const assignment = getAssignmentForLesson(selectedLesson);
 							const material = getMaterialForLesson(selectedLesson);
 							const bgColor = selectedLesson.class
 								? getClassColor(selectedLesson.class, customColors)
@@ -545,9 +553,11 @@ function WochenansichtContent() {
 													{theme.description}
 												</p>
 											)}
-											<p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
-												KW {theme.startWeek} - {theme.endWeek} / {theme.year}
-											</p>
+											{assignment && (
+												<p className="text-xs mt-2" style={{ color: 'var(--text-secondary)' }}>
+													KW {assignment.startWeek} - {assignment.endWeek} / {assignment.year}
+												</p>
+											)}
 										</div>
 									)}
 

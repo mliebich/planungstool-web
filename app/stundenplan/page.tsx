@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { storage } from "@/lib/services/storage";
-import { Lesson, Schedule } from "@/lib/types";
+import { Lesson } from "@/lib/types";
 import { validateTimeFormat, timeToMinutes } from "@/lib/utils/dateUtils";
 import { getClassColor, ClassColorConfig } from "@/lib/utils/colorUtils";
 import { v4 as uuidv4 } from "uuid";
