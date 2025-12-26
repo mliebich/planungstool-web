@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import examService from "@/lib/services/examService";
 import classService from "@/lib/services/classService";
+import photoService from "@/lib/services/photoService";
 import { Exam, ExamResult, Class, Student } from "@/lib/types";
 import { calculateGrade } from "@/lib/utils/gradeCalculator";
 import { formatDate } from "@/lib/utils/dateUtils";
@@ -26,6 +27,7 @@ export default function PruefungenPage() {
 	const [printClassOverview, setPrintClassOverview] = useState<string | null>(null);
 	const [maxPointsInput, setMaxPointsInput] = useState("100");
 	const [bonusPointsInput, setBonusPointsInput] = useState("0");
+	const [studentPhotos, setStudentPhotos] = useState<Record<string, string>>({});
 
 	const [formData, setFormData] = useState({
 		title: "",
@@ -192,6 +194,22 @@ export default function PruefungenPage() {
 		return classes.find((c) => c.id === classId);
 	};
 
+	const loadPhotosForClass = async (classId: string) => {
+		const cls = classes.find(c => c.id === classId);
+		if (!cls) return;
+
+		const photos: Record<string, string> = {};
+		for (const student of cls.students) {
+			if (student.photoId) {
+				const photo = await photoService.getPhoto(student.photoId);
+				if (photo) {
+					photos[student.id] = photo;
+				}
+			}
+		}
+		setStudentPhotos(photos);
+	};
+
 	const getStudentOverallAverage = (studentId: string, classId: string): number | null => {
 		const classExams = exams.filter(e => e.classId === classId);
 		let totalWeightedGrade = 0;
@@ -228,9 +246,14 @@ export default function PruefungenPage() {
 	// Print exam results
 	useEffect(() => {
 		if (printExam) {
-			const timer = setTimeout(() => {
-				window.print();
-			}, 100);
+			// Load photos first, then print
+			loadPhotosForClass(printExam.classId).then(() => {
+				const timer = setTimeout(() => {
+					window.print();
+				}, 150);
+
+				return () => clearTimeout(timer);
+			});
 
 			const handleAfterPrint = () => {
 				setPrintExam(null);
@@ -238,7 +261,6 @@ export default function PruefungenPage() {
 			window.addEventListener('afterprint', handleAfterPrint);
 
 			return () => {
-				clearTimeout(timer);
 				window.removeEventListener('afterprint', handleAfterPrint);
 			};
 		}
@@ -281,9 +303,14 @@ export default function PruefungenPage() {
 	// Print class overview
 	useEffect(() => {
 		if (printClassOverview) {
-			const timer = setTimeout(() => {
-				window.print();
-			}, 100);
+			// Load photos first, then print
+			loadPhotosForClass(printClassOverview).then(() => {
+				const timer = setTimeout(() => {
+					window.print();
+				}, 150);
+
+				return () => clearTimeout(timer);
+			});
 
 			const handleAfterPrint = () => {
 				setPrintClassOverview(null);
@@ -291,7 +318,6 @@ export default function PruefungenPage() {
 			window.addEventListener('afterprint', handleAfterPrint);
 
 			return () => {
-				clearTimeout(timer);
 				window.removeEventListener('afterprint', handleAfterPrint);
 			};
 		}
@@ -1002,7 +1028,7 @@ export default function PruefungenPage() {
 						<table className="print-exam-table">
 							<thead>
 								<tr>
-									<th style={{ width: '40px' }}>Nr.</th>
+									<th style={{ width: '40px' }}>{Object.keys(studentPhotos).length > 0 ? '' : 'Nr.'}</th>
 									<th style={{ width: '30%' }}>Nachname</th>
 									<th style={{ width: '30%' }}>Vorname</th>
 									<th style={{ width: '15%', textAlign: 'center' }}>Punkte</th>
@@ -1012,7 +1038,22 @@ export default function PruefungenPage() {
 							<tbody>
 								{students.map((student, index) => (
 									<tr key={student.id}>
-										<td style={{ textAlign: 'center' }}>{index + 1}</td>
+										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined }}>
+											{studentPhotos[student.id] ? (
+												<img
+													src={studentPhotos[student.id]}
+													alt=""
+													style={{
+														width: '28px',
+														height: '28px',
+														borderRadius: '50%',
+														objectFit: 'cover',
+													}}
+												/>
+											) : (
+												index + 1
+											)}
+										</td>
 										<td>{student.lastName}</td>
 										<td>{student.firstName}</td>
 										<td style={{ textAlign: 'center' }}>
@@ -1058,7 +1099,7 @@ export default function PruefungenPage() {
 						<table className="print-overview-table">
 							<thead>
 								<tr>
-									<th style={{ width: '30px' }}>Nr.</th>
+									<th style={{ width: '30px' }}>{Object.keys(studentPhotos).length > 0 ? '' : 'Nr.'}</th>
 									<th>Nachname</th>
 									<th>Vorname</th>
 									{exams.map((exam, i) => (
@@ -1076,7 +1117,22 @@ export default function PruefungenPage() {
 							<tbody>
 								{students.map((student, index) => (
 									<tr key={student.id}>
-										<td style={{ textAlign: 'center' }}>{index + 1}</td>
+										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined }}>
+											{studentPhotos[student.id] ? (
+												<img
+													src={studentPhotos[student.id]}
+													alt=""
+													style={{
+														width: '24px',
+														height: '24px',
+														borderRadius: '50%',
+														objectFit: 'cover',
+													}}
+												/>
+											) : (
+												index + 1
+											)}
+										</td>
 										<td>{student.lastName}</td>
 										<td>{student.firstName}</td>
 										{student.grades.map((grade, i) => (
