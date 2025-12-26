@@ -128,25 +128,35 @@ function WochenansichtContent() {
 		setCurrentYear(getCurrentYear());
 	};
 
-	const getLessonsForSlot = (dayIndex: number, timeSlot: string) => {
+	const getLessonsForSlot = (dayIndex: number, timeSlot: string): Lesson[] => {
 		const [slotStart] = timeSlot.split('-');
 
 		// Finde alle Lektionen für diesen Slot
 		const slotLessons = lessons.filter(l => l.dayOfWeek === dayIndex && l.startTime === slotStart);
 
-		// Priorisiere Theme-Lektionen mit passender plannedWeek
+		// Sammle alle relevanten Lektionen
+		const result: Lesson[] = [];
+
+		// Theme-Lektionen mit passender plannedWeek
 		const themeLessonsForWeek = slotLessons.filter(l =>
 			l.themeId && l.plannedWeek === currentWeek
 		);
 
-		// Falls Theme-Lektionen für diese Woche existieren, zeige diese
-		if (themeLessonsForWeek.length > 0) {
-			return themeLessonsForWeek[0];
+		// Füge alle Theme-Lektionen hinzu
+		result.push(...themeLessonsForWeek);
+
+		// Für normale Lektionen (ohne Thema): nur hinzufügen wenn keine Theme-Lektion für diese Klasse existiert
+		const normalLessons = slotLessons.filter(l => !l.themeId);
+		for (const normalLesson of normalLessons) {
+			const hasThemeLessonForClass = themeLessonsForWeek.some(
+				tl => tl.class === normalLesson.class
+			);
+			if (!hasThemeLessonForClass) {
+				result.push(normalLesson);
+			}
 		}
 
-		// Ansonsten zeige normale Lektionen (ohne Thema)
-		const normalLessons = slotLessons.filter(l => !l.themeId);
-		return normalLessons.length > 0 ? normalLessons[0] : null;
+		return result;
 	};
 
 	const getThemeForLesson = (lesson: Lesson) => {
@@ -341,47 +351,59 @@ function WochenansichtContent() {
 											{timeSlot}
 										</td>
 										{visibleDays.map(day => {
-											const lesson = getLessonsForSlot(day.index, timeSlot);
-											const theme = lesson ? getThemeForLesson(lesson) : null;
-											const material = lesson ? getMaterialForLesson(lesson) : null;
-											const bgColor = lesson?.class
-												? getClassColor(lesson.class, customColors)
-												: 'var(--gray-100)';
+											const slotLessons = getLessonsForSlot(day.index, timeSlot);
 
 											return (
 												<td
 													key={day.index}
 													className="p-1 border-b border-r"
 												>
-													{lesson ? (
-														<div
-															className="p-2 rounded-lg text-white min-h-[80px] cursor-pointer hover:opacity-90 transition-opacity"
-															style={{ backgroundColor: bgColor }}
-															onClick={() => setSelectedLesson(lesson)}
-														>
-															<div className="font-semibold text-sm">{lesson.subject}</div>
-															{lesson.class && (
-																<div className="text-xs opacity-90">{lesson.class}</div>
-															)}
-															{lesson.room && (
-																<div className="text-xs opacity-75">{lesson.room}</div>
-															)}
-															{theme && (
-																<div
-																	className="mt-1 text-xs px-1 py-0.5 rounded bg-white/20"
-																	title={theme.name}
-																>
-																	{theme.name.substring(0, 15)}...
-																</div>
-															)}
-															{material && (
-																<div
-																	className="text-xs opacity-75 truncate"
-																	title={material.title}
-																>
-																	{material.title}
-																</div>
-															)}
+													{slotLessons.length > 0 ? (
+														<div className="flex flex-col gap-1 min-h-[80px]">
+															{slotLessons.map(lesson => {
+																const theme = getThemeForLesson(lesson);
+																const material = getMaterialForLesson(lesson);
+																const bgColor = lesson.class
+																	? getClassColor(lesson.class, customColors)
+																	: 'var(--gray-400)';
+
+																return (
+																	<div
+																		key={lesson.id}
+																		className="p-2 rounded-lg text-white cursor-pointer hover:opacity-90 transition-opacity flex-1"
+																		style={{ backgroundColor: bgColor, minHeight: slotLessons.length > 1 ? '38px' : '80px' }}
+																		onClick={() => setSelectedLesson(lesson)}
+																	>
+																		<div className="font-semibold text-sm">{lesson.subject}</div>
+																		{lesson.class && (
+																			<div className="text-xs opacity-90">{lesson.class}</div>
+																		)}
+																		{slotLessons.length === 1 && (
+																			<>
+																				{lesson.room && (
+																					<div className="text-xs opacity-75">{lesson.room}</div>
+																				)}
+																				{theme && (
+																					<div
+																						className="mt-1 text-xs px-1 py-0.5 rounded bg-white/20"
+																						title={theme.name}
+																					>
+																						{theme.name.substring(0, 15)}...
+																					</div>
+																				)}
+																				{material && (
+																					<div
+																						className="text-xs opacity-75 truncate"
+																						title={material.title}
+																					>
+																						{material.title}
+																					</div>
+																				)}
+																			</>
+																		)}
+																	</div>
+																);
+															})}
 														</div>
 													) : (
 														<div
