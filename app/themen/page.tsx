@@ -282,7 +282,9 @@ export default function ThemenPage() {
 	const handleUpdateTheme = async () => {
 		if (!editingTheme) return;
 
-		const isActive = hasActiveLessons(editingTheme.id);
+		// Check if this is a new theme (duplicate) or existing
+		const isNewTheme = !themes.some(t => t.id === editingTheme.id);
+		const isActive = !isNewTheme && hasActiveLessons(editingTheme.id);
 		const oldTargetClass = editingTheme.targetClass || editingTheme.classLevel;
 		const newTargetClass = themeForm.targetClass || themeForm.classLevel;
 		const targetClassChanged = oldTargetClass !== newTargetClass;
@@ -304,9 +306,10 @@ export default function ThemenPage() {
 			totalLessons: themeForm.totalLessons,
 		};
 
-		const updatedThemes = themes.map(t =>
-			t.id === editingTheme.id ? updatedTheme : t
-		);
+		// If new theme (duplicate), add it; otherwise update existing
+		const updatedThemes = isNewTheme
+			? [...themes, updatedTheme]
+			: themes.map(t => t.id === editingTheme.id ? updatedTheme : t);
 
 		await saveThemes(updatedThemes);
 
@@ -434,6 +437,36 @@ export default function ThemenPage() {
 				setSelectedTheme(null);
 			}
 		}
+	};
+
+	// Duplicate theme for another class
+	const handleDuplicateTheme = (theme: Theme) => {
+		// Create a copy with new ID and cleared assignments
+		const duplicatedTheme: Theme = {
+			...theme,
+			id: uuidv4(),
+			name: `${theme.name} (Kopie)`,
+			targetClass: '', // Clear so user must set new class
+			assignedLessons: [],
+			// Deep copy materials with new IDs
+			materials: theme.materials.map(m => ({
+				...m,
+				id: uuidv4(),
+			})),
+		};
+
+		// Open edit modal with duplicated theme (will be saved when user confirms)
+		setEditingTheme(duplicatedTheme);
+		setThemeForm({
+			name: duplicatedTheme.name,
+			description: duplicatedTheme.description || '',
+			classLevel: duplicatedTheme.classLevel,
+			targetClass: '',
+			startWeek: duplicatedTheme.startWeek,
+			endWeek: duplicatedTheme.endWeek,
+			year: duplicatedTheme.year,
+			totalLessons: duplicatedTheme.totalLessons,
+		});
 	};
 
 	const resetThemeForm = () => {
@@ -693,6 +726,14 @@ export default function ThemenPage() {
 													</button>
 												)}
 												<button
+													onClick={e => { e.stopPropagation(); handleDuplicateTheme(theme); }}
+													className="px-2 py-1 rounded text-xs"
+													style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}
+													title="Für andere Klasse duplizieren"
+												>
+													Kopieren
+												</button>
+												<button
 													onClick={e => { e.stopPropagation(); openEditTheme(theme); }}
 													className="px-2 py-1 rounded text-xs"
 													style={{ backgroundColor: 'var(--gray-200)' }}
@@ -824,11 +865,22 @@ export default function ThemenPage() {
 				<div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
 					<div className="bg-white rounded-2xl p-6 w-full max-w-md">
 						<h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
-							{editingTheme ? 'Thema bearbeiten' : 'Neues Thema'}
+							{editingTheme
+								? (themes.some(t => t.id === editingTheme.id)
+									? 'Thema bearbeiten'
+									: 'Thema duplizieren')
+								: 'Neues Thema'}
 						</h2>
 
+						{/* Hint for duplicating */}
+						{editingTheme && !themes.some(t => t.id === editingTheme.id) && (
+							<div className="p-3 rounded-lg mb-4 text-sm" style={{ backgroundColor: 'var(--secondary-light)', color: 'var(--secondary)' }}>
+								Passe Zielklasse und Zeitraum für die neue Kopie an. Alle Materialien werden übernommen.
+							</div>
+						)}
+
 						{/* Hint for active themes */}
-						{editingTheme && hasActiveLessons(editingTheme.id) && (
+						{editingTheme && themes.some(t => t.id === editingTheme.id) && hasActiveLessons(editingTheme.id) && (
 							<div className="p-3 rounded-lg mb-4 text-sm" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-dark)' }}>
 								Dieses Thema ist aktiv. Änderungen an Zielklasse oder Zeitraum werden automatisch im Wochenplan übernommen.
 							</div>
