@@ -7,22 +7,35 @@ export interface Lesson {
 	room?: string;
 	class?: string;
 	themeId?: string; // Verknüpfung zu einem Oberthema
+	assignmentId?: string; // Verknüpfung zu einer Thema-Zuweisung
 	assignedMaterialId?: string; // Spezifisches Material für diese Lektion
 	plannedWeek?: number; // Spezifische Woche, in der diese Lektion mit Material stattfinden soll
+}
+
+// Zuweisung eines Themas zu einer Klasse mit Zeitraum
+export interface ThemeAssignment {
+	id: string;
+	targetClass: string; // Zielklasse, z.B. '5a'
+	startWeek: number; // Start-Kalenderwoche
+	endWeek: number; // End-Kalenderwoche
+	year: number;
+	assignedLessons: string[]; // IDs der zugewiesenen Lektionen
 }
 
 export interface Theme {
 	id: string;
 	name: string;
 	description?: string;
-	startWeek: number; // Kalenderwoche
-	endWeek: number;
-	year: number;
-	classLevel: string; // Klasse, z.B. '2. Klasse'
-	targetClass?: string; // Zielklasse für Materialverteilung, z.B. '2a'
+	classLevel: string; // Klassenstufe, z.B. '5. Klasse'
 	materials: Material[];
 	totalLessons: number;
-	assignedLessons: string[]; // IDs der zugewiesenen Lektionen
+	assignments: ThemeAssignment[]; // Zuweisungen zu Klassen
+	// Legacy fields for backward compatibility (will be migrated)
+	startWeek?: number;
+	endWeek?: number;
+	year?: number;
+	targetClass?: string;
+	assignedLessons?: string[];
 }
 
 export interface Material {
