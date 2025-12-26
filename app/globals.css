@@ -551,4 +551,174 @@ input[type="number"] {
   @page landscape {
     size: A4 landscape;
   }
+
+  /* Week View Print Styles - Landscape */
+  .print-week-view {
+    display: block !important;
+    padding: 10px;
+    background: white !important;
+    page: week-landscape;
+  }
+
+  @page week-landscape {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  .print-week-header {
+    text-align: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #000;
+  }
+
+  .print-week-header h1 {
+    font-size: 18pt;
+    font-weight: bold;
+    margin: 0;
+    color: black !important;
+  }
+
+  .print-week-header p {
+    font-size: 10pt;
+    color: #333 !important;
+    margin: 5px 0 0 0;
+  }
+
+  .print-week-grid {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .print-week-day {
+    border: 1px solid #333;
+    page-break-inside: avoid;
+  }
+
+  .print-week-day-header {
+    background-color: #e0e0e0 !important;
+    padding: 6px 10px;
+    font-weight: bold;
+    font-size: 11pt;
+    border-bottom: 1px solid #333;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-week-day-content {
+    padding: 6px;
+  }
+
+  .print-week-lesson {
+    display: flex;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid #ddd;
+    font-size: 9pt;
+  }
+
+  .print-week-lesson:last-child {
+    border-bottom: none;
+  }
+
+  .print-week-lesson-time {
+    width: 45px;
+    min-width: 45px;
+    font-weight: bold;
+    color: black !important;
+  }
+
+  .print-week-lesson-info {
+    flex: 1;
+  }
+
+  .print-week-lesson-subject {
+    font-weight: bold;
+    color: black !important;
+  }
+
+  .print-week-lesson-class {
+    font-weight: normal;
+    color: #333 !important;
+  }
+
+  .print-week-lesson-theme {
+    font-style: italic;
+    color: #333 !important;
+    font-size: 8pt;
+  }
+
+  .print-week-lesson-material {
+    margin-top: 3px;
+    padding: 4px 6px;
+    background-color: #f5f5f5 !important;
+    border-left: 2px solid #007AFF;
+    font-size: 8pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .print-week-lesson-material-title {
+    font-weight: bold;
+    color: black !important;
+  }
+
+  .print-week-lesson-material-desc {
+    color: #333 !important;
+    margin-top: 2px;
+  }
+
+  .print-week-lesson-material a {
+    display: block !important;
+    color: #0066CC !important;
+    text-decoration: underline !important;
+    font-size: 8pt;
+    margin-top: 2px;
+    word-break: break-all;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .print-week-footer {
+    margin-top: 15px;
+    text-align: right;
+    font-size: 8pt;
+    color: #666 !important;
+    border-top: 1px solid #ccc;
+    padding-top: 5px;
+  }
+
+  /* Legend for week print */
+  .print-week-legend {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #ccc;
+    font-size: 8pt;
+  }
+
+  .print-week-legend-title {
+    font-weight: bold;
+    margin-bottom: 5px;
+  }
+
+  .print-week-legend-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .print-week-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .print-week-legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }

@@ -275,13 +275,7 @@ function WochenansichtContent() {
 				</div>
 			</header>
 
-			{/* Print Header for week view (hidden on screen, hidden when printing day) */}
-			<div className={`print-header hidden ${printDay ? 'no-print' : ''}`}>
-				<h1>Wochenansicht - KW {currentWeek} / {currentYear}</h1>
-				<p>Gedruckt am {new Date().toLocaleDateString('de-DE')}</p>
-			</div>
-
-			<main className={`max-w-7xl mx-auto px-4 py-6 ${printDay ? 'no-print' : ''}`}>
+			<main className="max-w-7xl mx-auto px-4 py-6 no-print">
 				{visibleDays.length === 0 ? (
 					<div className="bg-white rounded-xl p-8 text-center shadow-sm">
 						<p style={{ color: 'var(--text-secondary)' }}>
@@ -437,10 +431,10 @@ function WochenansichtContent() {
 				<div className="mt-6 flex justify-center">
 					<button
 						onClick={() => window.print()}
-						className="px-6 py-3 rounded-lg text-white font-medium"
-						style={{ backgroundColor: 'var(--secondary)' }}
+						className="px-6 py-3 rounded-lg font-medium flex items-center gap-2"
+						style={{ backgroundColor: 'var(--gray-200)', color: 'var(--text-primary)' }}
 					>
-						Wochenplan drucken
+						🖨️ Woche drucken (Querformat)
 					</button>
 				</div>
 			</main>
@@ -569,6 +563,121 @@ function WochenansichtContent() {
 				</div>
 			)}
 
+			{/* Print Week View - Landscape with Material Links */}
+			{!printDay && (
+				<div className="print-only print-week-view">
+					<div className="print-week-header">
+						<h1>Wochenplan KW {currentWeek} / {currentYear}</h1>
+						<p>
+							{weekDays[0] && formatDate(weekDays[0])} - {weekDays[4] && formatDate(weekDays[4])}
+						</p>
+					</div>
+
+					<div className="print-week-grid">
+						{visibleDays.map(day => {
+							const dayDate = weekDays[day.index === 0 ? 6 : day.index - 1];
+							const dayLessons = getLessonsForDay(day.index);
+
+							return (
+								<div key={day.index} className="print-week-day">
+									<div className="print-week-day-header">
+										{day.name}{dayDate && `, ${formatDate(dayDate)}`}
+									</div>
+									<div className="print-week-day-content">
+										{dayLessons.length === 0 ? (
+											<div style={{ color: '#999', fontStyle: 'italic', fontSize: '9pt', padding: '4px 0' }}>
+												Keine Lektionen
+											</div>
+										) : (
+											dayLessons.map(lesson => {
+												const theme = getThemeForLesson(lesson);
+												const material = getMaterialForLesson(lesson);
+
+												return (
+													<div key={lesson.id} className="print-week-lesson">
+														<div className="print-week-lesson-time">
+															{lesson.startTime}
+														</div>
+														<div className="print-week-lesson-info">
+															<div>
+																<span className="print-week-lesson-subject">{lesson.subject}</span>
+																{lesson.class && (
+																	<span className="print-week-lesson-class"> ({lesson.class})</span>
+																)}
+																{lesson.room && (
+																	<span className="print-week-lesson-class"> • {lesson.room}</span>
+																)}
+															</div>
+															{theme && (
+																<div className="print-week-lesson-theme">
+																	{theme.name}
+																</div>
+															)}
+															{material && (
+																<div className="print-week-lesson-material">
+																	<div className="print-week-lesson-material-title">
+																		{material.type === 'link' ? '🔗' :
+																		 material.type === 'pdf' ? '📄' :
+																		 material.type === 'video' ? '🎬' :
+																		 material.type === 'exercise' ? '✏️' : '📝'} {material.title}
+																	</div>
+																	{material.description && (
+																		<div className="print-week-lesson-material-desc">
+																			{material.description}
+																		</div>
+																	)}
+																	{material.urls && material.urls.length > 0 && (
+																		<>
+																			{material.urls.map((url, i) => (
+																				<a key={i} href={url} target="_blank" rel="noopener noreferrer">
+																					{url}
+																				</a>
+																			))}
+																		</>
+																	)}
+																</div>
+															)}
+														</div>
+													</div>
+												);
+											})
+										)}
+									</div>
+								</div>
+							);
+						})}
+					</div>
+
+					{/* Legend */}
+					{(() => {
+						const classNames = [...new Set(lessons.map(l => l.class).filter(Boolean))];
+						if (classNames.length > 0) {
+							return (
+								<div className="print-week-legend">
+									<div className="print-week-legend-title">Klassen:</div>
+									<div className="print-week-legend-items">
+										{classNames.map(className => (
+											<div key={className} className="print-week-legend-item">
+												<div
+													className="print-week-legend-color"
+													style={{ backgroundColor: getClassColor(className!, customColors) }}
+												/>
+												<span>{className}</span>
+											</div>
+										))}
+									</div>
+								</div>
+							);
+						}
+						return null;
+					})()}
+
+					<div className="print-week-footer">
+						Gedruckt am {new Date().toLocaleDateString('de-CH')}
+					</div>
+				</div>
+			)}
+
 			{/* Print Day - nur Print-Version, kein Modal */}
 			{printDay && (
 				<>
@@ -620,7 +729,7 @@ function WochenansichtContent() {
 						</div>
 
 						<div className="print-day-footer">
-							{new Date().toLocaleDateString('de-DE')}
+							{new Date().toLocaleDateString('de-CH')}
 						</div>
 					</div>
 				</>
