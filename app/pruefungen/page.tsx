@@ -1038,7 +1038,7 @@ export default function PruefungenPage() {
 							<tbody>
 								{students.map((student, index) => (
 									<tr key={student.id}>
-										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined }}>
+										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined, verticalAlign: 'middle' }}>
 											{studentPhotos[student.id] ? (
 												<img
 													src={studentPhotos[student.id]}
@@ -1048,6 +1048,8 @@ export default function PruefungenPage() {
 														height: '28px',
 														borderRadius: '50%',
 														objectFit: 'cover',
+														display: 'block',
+														margin: '0 auto',
 													}}
 												/>
 											) : (
@@ -1117,7 +1119,7 @@ export default function PruefungenPage() {
 							<tbody>
 								{students.map((student, index) => (
 									<tr key={student.id}>
-										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined }}>
+										<td style={{ textAlign: 'center', padding: studentPhotos[student.id] ? '2px' : undefined, verticalAlign: 'middle' }}>
 											{studentPhotos[student.id] ? (
 												<img
 													src={studentPhotos[student.id]}
@@ -1127,6 +1129,8 @@ export default function PruefungenPage() {
 														height: '24px',
 														borderRadius: '50%',
 														objectFit: 'cover',
+														display: 'block',
+														margin: '0 auto',
 													}}
 												/>
 											) : (
