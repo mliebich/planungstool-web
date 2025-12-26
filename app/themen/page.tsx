@@ -282,25 +282,149 @@ export default function ThemenPage() {
 	const handleUpdateTheme = async () => {
 		if (!editingTheme) return;
 
+		const isActive = hasActiveLessons(editingTheme.id);
+		const oldTargetClass = editingTheme.targetClass || editingTheme.classLevel;
+		const newTargetClass = themeForm.targetClass || themeForm.classLevel;
+		const targetClassChanged = oldTargetClass !== newTargetClass;
+		const timeRangeChanged =
+			editingTheme.startWeek !== themeForm.startWeek ||
+			editingTheme.endWeek !== themeForm.endWeek ||
+			editingTheme.year !== themeForm.year;
+
+		// Update the theme first
+		const updatedTheme = {
+			...editingTheme,
+			name: themeForm.name,
+			description: themeForm.description || undefined,
+			classLevel: themeForm.classLevel,
+			targetClass: themeForm.targetClass || undefined,
+			startWeek: themeForm.startWeek,
+			endWeek: themeForm.endWeek,
+			year: themeForm.year,
+			totalLessons: themeForm.totalLessons,
+		};
+
 		const updatedThemes = themes.map(t =>
-			t.id === editingTheme.id
-				? {
-						...t,
-						name: themeForm.name,
-						description: themeForm.description || undefined,
-						classLevel: themeForm.classLevel,
-						targetClass: themeForm.targetClass || undefined,
-						startWeek: themeForm.startWeek,
-						endWeek: themeForm.endWeek,
-						year: themeForm.year,
-						totalLessons: themeForm.totalLessons,
-				  }
-				: t
+			t.id === editingTheme.id ? updatedTheme : t
 		);
 
 		await saveThemes(updatedThemes);
+
+		// If theme is active and target class or time range changed, redistribute lessons
+		if (isActive && (targetClassChanged || timeRangeChanged)) {
+			// Remove old lesson instances
+			const lessonsWithoutTheme = lessons.filter(lesson => lesson.themeId !== editingTheme.id);
+			await saveLessons(lessonsWithoutTheme);
+
+			// Re-activate with new settings
+			const themeToReactivate = { ...updatedTheme, assignedLessons: [] };
+
+			// Update themes state to reflect cleared assignments before reactivating
+			const themesBeforeReactivate = updatedThemes.map(t =>
+				t.id === editingTheme.id ? themeToReactivate : t
+			);
+			setThemes(themesBeforeReactivate);
+
+			// Small delay to ensure state is updated
+			await new Promise(resolve => setTimeout(resolve, 100));
+
+			// Reactivate - need to reload lessons since we just modified them
+			const savedLessons = await storage.getItem('lessons');
+			const currentLessons = savedLessons ? JSON.parse(savedLessons) : [];
+			setLessons(currentLessons);
+
+			// Now activate with fresh data
+			await activateThemeWithData(themeToReactivate, currentLessons, themesBeforeReactivate);
+		}
+
 		setEditingTheme(null);
 		resetThemeForm();
+	};
+
+	// Separate function to activate theme with provided data (avoids stale state issues)
+	const activateThemeWithData = async (theme: Theme, currentLessons: Lesson[], currentThemes: Theme[]) => {
+		const targetClass = theme.targetClass || theme.classLevel;
+
+		// Find base lessons for the target class
+		const baseLessonsForClass = currentLessons.filter(
+			lesson =>
+				lesson.class === targetClass &&
+				lesson.dayOfWeek >= 1 && lesson.dayOfWeek <= 5 &&
+				!lesson.themeId
+		);
+
+		if (baseLessonsForClass.length === 0) {
+			alert(`Keine Lektionen für Klasse "${targetClass}" gefunden.`);
+			return;
+		}
+
+		// Sort lessons by day and time
+		const sortedBaseLessons = [...baseLessonsForClass].sort((a, b) => {
+			if (a.dayOfWeek !== b.dayOfWeek) return a.dayOfWeek - b.dayOfWeek;
+			return timeToMinutes(a.startTime) - timeToMinutes(b.startTime);
+		});
+
+		// Calculate required lessons
+		const totalRequiredLessons = theme.materials.reduce((total, material) => {
+			return total + (material.plannedLessons || 0);
+		}, 0);
+
+		// Calculate available lessons
+		const weekCount = theme.endWeek - theme.startWeek + 1;
+		const lessonsPerWeek = sortedBaseLessons.length;
+		const totalAvailableLessons = lessonsPerWeek * weekCount;
+
+		// Create weeks array
+		const weeksArray: number[] = [];
+		for (let w = theme.startWeek; w <= theme.endWeek; w++) {
+			weeksArray.push(w);
+		}
+
+		// Create lesson instances with assigned materials
+		const newLessonInstances: Lesson[] = [];
+		const assignedLessonIds: string[] = [];
+		let totalLessonsCreated = 0;
+		let lessonInstanceId = 1;
+
+		for (const material of theme.materials) {
+			const plannedLessons = material.plannedLessons || 0;
+
+			for (let lessonNum = 0; lessonNum < plannedLessons; lessonNum++) {
+				if (totalLessonsCreated >= totalAvailableLessons) break;
+
+				const weekIndex = Math.floor(totalLessonsCreated / sortedBaseLessons.length);
+				const lessonIndexInWeek = totalLessonsCreated % sortedBaseLessons.length;
+
+				if (weekIndex >= weeksArray.length) break;
+
+				const currentWeek = weeksArray[weekIndex];
+				const baseLesson = sortedBaseLessons[lessonIndexInWeek];
+
+				const newLessonInstance: Lesson = {
+					...baseLesson,
+					id: `${baseLesson.id}_theme_${theme.id}_week_${currentWeek}_${lessonInstanceId++}`,
+					themeId: theme.id,
+					plannedWeek: currentWeek,
+					assignedMaterialId: material.id,
+				};
+
+				newLessonInstances.push(newLessonInstance);
+				assignedLessonIds.push(newLessonInstance.id);
+				totalLessonsCreated++;
+			}
+		}
+
+		// Save updated lessons
+		const updatedLessons = [...currentLessons, ...newLessonInstances];
+		await saveLessons(updatedLessons);
+
+		// Update theme with assigned lessons
+		const finalThemes = currentThemes.map(t =>
+			t.id === theme.id
+				? { ...t, assignedLessons: assignedLessonIds }
+				: t
+		);
+		await saveThemes(finalThemes);
 	};
 
 	const handleDeleteTheme = async (id: string) => {
@@ -702,6 +826,13 @@ export default function ThemenPage() {
 						<h2 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>
 							{editingTheme ? 'Thema bearbeiten' : 'Neues Thema'}
 						</h2>
+
+						{/* Hint for active themes */}
+						{editingTheme && hasActiveLessons(editingTheme.id) && (
+							<div className="p-3 rounded-lg mb-4 text-sm" style={{ backgroundColor: 'var(--primary-light)', color: 'var(--primary-dark)' }}>
+								Dieses Thema ist aktiv. Änderungen an Zielklasse oder Zeitraum werden automatisch im Wochenplan übernommen.
+							</div>
+						)}
 
 						<div className="space-y-4">
 							<div>
