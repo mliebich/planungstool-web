@@ -296,9 +296,13 @@ export default function KlassenPage() {
 			const text = await file.text();
 			const count = await photoService.importPhotos(text);
 			alert(`${count} Foto(s) importiert!`);
-			// Reload photos for current class
+			// Force refresh: clear state first, then reload
+			setStudentPhotos({});
 			if (selectedClass) {
-				await loadPhotosForClass(selectedClass);
+				// Small delay to ensure state is cleared before reload
+				setTimeout(async () => {
+					await loadPhotosForClass(selectedClass);
+				}, 50);
 			}
 		} catch (error) {
 			console.error('Import-Fehler:', error);
