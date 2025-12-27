@@ -295,13 +295,47 @@ export default function KlassenPage() {
 		try {
 			const text = await file.text();
 			const count = await photoService.importPhotos(text);
-			alert(`${count} Foto(s) importiert!`);
-			// Force refresh: clear state first, then reload
+
+			// Parse imported photos to get IDs and update student records
+			const importedPhotos = JSON.parse(text) as { id: string }[];
+			let linkedCount = 0;
+
+			// Update all classes with matching student IDs
+			for (const cls of classes) {
+				let classUpdated = false;
+				for (const student of cls.students) {
+					const photoId = `photo-${student.id}`;
+					const hasPhoto = importedPhotos.some(p => p.id === photoId);
+
+					if (hasPhoto && student.photoId !== photoId) {
+						// Update student with photoId
+						await classService.updateStudent(cls.id, student.id, { photoId });
+						classUpdated = true;
+						linkedCount++;
+					}
+				}
+				if (classUpdated) {
+					// Reload class data
+					const updatedClass = await classService.getClassById(cls.id);
+					if (updatedClass) {
+						setClasses(prev => prev.map(c => c.id === updatedClass.id ? updatedClass : c));
+						if (selectedClass?.id === updatedClass.id) {
+							setSelectedClass(updatedClass);
+						}
+					}
+				}
+			}
+
+			alert(`${count} Foto(s) importiert, ${linkedCount} Schüler:innen verknüpft!`);
+
+			// Force refresh photos
 			setStudentPhotos({});
 			if (selectedClass) {
-				// Small delay to ensure state is cleared before reload
 				setTimeout(async () => {
-					await loadPhotosForClass(selectedClass);
+					const updatedClass = await classService.getClassById(selectedClass.id);
+					if (updatedClass) {
+						await loadPhotosForClass(updatedClass);
+					}
 				}, 50);
 			}
 		} catch (error) {
